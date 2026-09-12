@@ -17,3 +17,6 @@ ENV/
 .vscode/
 .idea/
 *.swp
+
+# Runtime memory written by the orchestrator
+data/flagged_history.json

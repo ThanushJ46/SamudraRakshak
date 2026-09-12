@@ -1,24 +1,28 @@
 """
 test_person_a.py
 ----------------
-A quick visual check that Person A's three functions work.
+A quick visual check that Person A's foundation layer works.
 
 Run it from the project root:
 
     python test_person_a.py
 
-It does NOT need any API keys to pass - without keys it falls back to sample
-vessels and basic (non-AI) explanations, and says so clearly.
+It does NOT need any API keys to pass. Without keys, the live Global Fishing
+Watch call fails (which is now correct behaviour - it raises instead of hiding
+it), the script falls back to sample vessels, and the AI explanations fall back
+to plain templated sentences. Every step says which one happened.
 """
 
 import sys
 
-# Ensure Windows terminal outputs Unicode cleanly without charmap encoding errors
+# Windows terminals default to a legacy codepage that cannot print some of the
+# characters the AI likes to use (fancy dashes, narrow spaces). Switch this
+# script's output to UTF-8 so printing an alert can never crash the test.
 if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from agents.dark_vessel_agent import find_dark_vessels
-from utils.gfw_client import get_vessel_positions
+from utils.gfw_client import generate_sample_vessels, get_vessel_positions
 from utils.llm_client import ask_ai
 
 
@@ -54,23 +58,38 @@ except Exception as error:
 
 
 # ---------------------------------------------------------------------------
-# TEST 2: can we get vessel positions?
+# TEST 2: can we get vessel positions? (both functions)
 # ---------------------------------------------------------------------------
-print_heading("TEST 2 - utils/gfw_client.py -> get_vessel_positions()")
+print_heading("TEST 2 - utils/gfw_client.py -> both functions")
 
 print(f"Searching this box: {TEST_AREA}")
-vessels = get_vessel_positions(TEST_AREA)
 
-print(f"Got {len(vessels)} vessels back.\n")
-print(f"{'VESSEL ID':<20} {'LAT':>10} {'LON':>12}   LAST SEEN")
-print("-" * 70)
+# --- 2a: the sample generator. Must always work, no keys needed. ---
+print("\n2a) generate_sample_vessels() ...")
+sample_vessels = generate_sample_vessels(TEST_AREA)
+print(f"    got {len(sample_vessels)} sample vessels")
+print("    RESULT: PASS" if sample_vessels else "    RESULT: FAIL - empty list")
+
+# --- 2b: the live feed. Allowed to fail, and it now RAISES rather than ---
+# --- hiding the failure, so we catch it here on purpose.               ---
+print("\n2b) get_vessel_positions() ...")
+try:
+    vessels = get_vessel_positions(TEST_AREA)
+    print(f"    got {len(vessels)} REAL vessels")
+    print("    RESULT: PASS - live Global Fishing Watch feed works.")
+except Exception as error:
+    print(f"    live call failed: {type(error).__name__}: {error}")
+    print("    RESULT: SKIPPED - raising here is correct behaviour, not a bug.")
+    print("    Using sample vessels for TEST 3 instead.")
+    vessels = sample_vessels
+
+print(f"\n{'VESSEL ID':<40} {'LAT':>9} {'LON':>10}   LAST SEEN")
+print("-" * 92)
 for vessel in vessels:
-    print(f"{vessel['vessel_id']:<20} "
-          f"{vessel['lat']:>10.4f} "
-          f"{vessel['lon']:>12.4f}   "
+    print(f"{vessel['vessel_id']:<40} "
+          f"{vessel['lat']:>9.4f} "
+          f"{vessel['lon']:>10.4f}   "
           f"{vessel['last_position_time']}")
-
-print("\nRESULT: PASS" if vessels else "\nRESULT: FAIL - empty list")
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +97,9 @@ print("\nRESULT: PASS" if vessels else "\nRESULT: FAIL - empty list")
 # ---------------------------------------------------------------------------
 print_heading("TEST 3 - agents/dark_vessel_agent.py -> find_dark_vessels()")
 
-print("Checking every vessel above for AIS silence...\n")
+print("Checking every vessel above for AIS silence...")
+print("(low severity uses a templated sentence - no AI call - to stay fast)\n")
+
 alerts = find_dark_vessels(vessels)
 
 print(f"\nFlagged {len(alerts)} of {len(vessels)} vessels as dark.\n")
@@ -103,21 +124,28 @@ print("RESULT: PASS - output shape is correct."
 # ---------------------------------------------------------------------------
 print_heading("SUMMARY FOR TEAMMATES")
 print("""
-Import these three functions like this:
+Import these functions like this:
 
     from utils.llm_client         import ask_ai
-    from utils.gfw_client         import get_vessel_positions
+    from utils.gfw_client         import get_vessel_positions, generate_sample_vessels
     from agents.dark_vessel_agent import find_dark_vessels
 
 Shapes you can rely on:
 
-  get_vessel_positions(area) takes:
+  get_vessel_positions(area)    -> REAL data. RAISES if it cannot deliver.
+  generate_sample_vessels(area) -> demo data. Never raises.
+  Both take:
       {"min_lat": float, "max_lat": float, "min_lon": float, "max_lon": float}
-  ...and returns a list of:
+  ...and return a list of:
       {"vessel_id": str, "lat": float, "lon": float, "last_position_time": str}
 
   find_dark_vessels(vessel_list) takes that same list,
   ...and returns a list of:
       {"vessel_id": str, "lat": float, "lon": float,
        "flagged_reason": str, "severity": "low" | "medium" | "high"}
+
+  The orchestrator's check_dark_vessels(area, use_demo_data) wraps all of the
+  above and returns:
+      {"vessels": [...each with an extra "is_new": bool...],
+       "data_source": "live" | "demo" | "demo (live call failed)"}
 """)

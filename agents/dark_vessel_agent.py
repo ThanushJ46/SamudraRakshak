@@ -134,13 +134,26 @@ def _parse_time(time_string) -> datetime | None:
 
 def _write_reason(vessel: dict, minutes_dark: float, severity: str) -> str:
     """
-    Ask the AI for a one-sentence, plain-English explanation of the flag.
+    Write the one-sentence explanation shown next to the alert.
 
-    If the AI is unavailable (no API key, no internet), we fall back to a
-    simple written-out sentence so the dashboard still has something to show.
+    "low" severity vessels get a simple templated sentence with NO AI call.
+    Every AI call costs about two seconds, and a busy area can flag twenty
+    vessels at once - so we spend those seconds only on the medium and high
+    alerts, which are the ones anybody actually reads.
+
+    If the AI is unavailable (no API key, no internet), we fall back to the
+    same kind of plain sentence so the dashboard always has something to show.
     """
 
     hours_dark = minutes_dark / 60
+
+    # Low severity: no AI, just state the facts. This is what keeps a 20-vessel
+    # scan fast.
+    if severity == "low":
+        return (
+            f"Silent for {int(minutes_dark)} minutes at "
+            f"{vessel['lat']:.2f}, {vessel['lon']:.2f} - a short AIS gap."
+        )
 
     prompt = (
         "You are a maritime monitoring assistant for a coast guard dashboard.\n"
