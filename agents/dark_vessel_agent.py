@@ -1,114 +1,166 @@
 """
-Dark-Vessel Agent for Maritime Guardian.
-Identifies vessels that have stopped transmitting AIS tracking signals (gone "dark"),
-evaluates risk severity, and generates an AI explanation for each flagged vessel.
+dark_vessel_agent.py
+--------------------
+Agent 1 of 3: finds ships that have "gone dark".
+
+A ship going dark means it stopped broadcasting its position. Sometimes that
+is a broken radio - but near a protected fishing zone it can also mean someone
+switched it off on purpose to fish illegally. Our job is to flag it so a human
+can take a look.
+
+    from agents.dark_vessel_agent import find_dark_vessels
+    alerts = find_dark_vessels(vessels)
 """
 
-from datetime import datetime, timezone
-import sys
 import os
+import sys
+from datetime import datetime, timezone
 
-# Allow imports from project root whether run directly or imported as a module
+# Let this file find the "utils" folder even if it is run directly
+# (python agents/dark_vessel_agent.py) rather than imported from the root.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from utils.llm_client import ask_ai
 
+# A vessel is only interesting once it has been silent this long.
+DARK_THRESHOLD_MINUTES = 30
 
-def _parse_timestamp(timestamp_val) -> datetime:
-    """
-    Helper function to parse a timestamp into an aware UTC datetime.
-    Supports datetime objects and ISO formatted strings.
-    """
-    if isinstance(timestamp_val, datetime):
-        if timestamp_val.tzinfo is None:
-            return timestamp_val.replace(tzinfo=timezone.utc)
-        return timestamp_val.astimezone(timezone.utc)
-
-    if isinstance(timestamp_val, str):
-        clean_str = timestamp_val.replace("Z", "+00:00")
-        try:
-            dt = datetime.fromisoformat(clean_str)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt
-        except ValueError:
-            pass
-
-    # Fallback to current UTC time if parsing fails
-    return datetime.now(timezone.utc)
-
-
-def _determine_severity(minutes_offline: float) -> str:
-    """
-    Determines severity level based on how long the vessel has been dark:
-    - 30 to 60 minutes: 'low'
-    - 60 to 180 minutes (1 to 3 hours): 'medium'
-    - More than 180 minutes (> 3 hours): 'high'
-    """
-    if minutes_offline > 180:
-        return "high"
-    elif minutes_offline > 60:
-        return "medium"
-    return "low"
+# Where "low" turns into "medium", and "medium" turns into "high".
+MEDIUM_THRESHOLD_MINUTES = 90        # 1.5 hours
+HIGH_THRESHOLD_MINUTES = 240         # 4 hours
 
 
 def find_dark_vessels(vessel_list: list[dict]) -> list[dict]:
     """
-    Scans a list of vessels and flags those whose last position broadcast
-    is more than ~30 minutes old.
+    Look through a list of vessels and return only the suspicious ones.
 
-    Parameters:
-        vessel_list (list[dict]): A list of vessel records, each containing:
-                                  - vessel_id (str)
-                                  - lat (float)
-                                  - lon (float)
-                                  - last_position_time (str or datetime)
+    Input:  vessel_list -> exactly what utils.gfw_client.get_vessel_positions()
+            returns, i.e. a list of:
+                {"vessel_id": str, "lat": float, "lon": float,
+                 "last_position_time": "2026-09-12T08:30:00Z"}
 
-    Returns:
-        list[dict]: A list of flagged dark vessels with:
-                    - vessel_id (str)
-                    - lat (float)
-                    - lon (float)
-                    - flagged_reason (str): AI-generated explanation
-                    - severity (str): 'low', 'medium', or 'high'
+    Output: a list of dicts, each one shaped exactly like:
+                {"vessel_id": str,
+                 "lat": float,
+                 "lon": float,
+                 "flagged_reason": str,          # one plain-English sentence
+                 "severity": "low" | "medium" | "high"}
+
+            Vessels that are reporting normally are simply left out.
     """
-    now = datetime.now(timezone.utc)
+
     flagged_vessels = []
+    now = datetime.now(timezone.utc)
 
     for vessel in vessel_list:
-        vessel_id = vessel.get("vessel_id", "UNKNOWN")
-        lat = vessel.get("lat", 0.0)
-        lon = vessel.get("lon", 0.0)
-        raw_time = vessel.get("last_position_time")
+        # Step 1: work out how long this vessel has been silent.
+        last_seen = _parse_time(vessel.get("last_position_time"))
 
-        if not raw_time:
+        # If the timestamp was unreadable we can't judge it, so skip it.
+        if last_seen is None:
             continue
 
-        last_time = _parse_timestamp(raw_time)
-        time_diff = now - last_time
-        minutes_offline = time_diff.total_seconds() / 60.0
+        minutes_dark = (now - last_seen).total_seconds() / 60
 
-        # Flag vessel if it has not broadcasted position for more than 30 minutes
-        if minutes_offline > 30:
-            severity = _determine_severity(minutes_offline)
+        # Step 2: still reporting recently enough? Not our problem.
+        if minutes_dark <= DARK_THRESHOLD_MINUTES:
+            continue
 
-            # Build a clear prompt for the Gemini LLM
-            prompt = (
-                f"You are an expert maritime intelligence officer for the Coast Guard. "
-                f"Vessel '{vessel_id}' at coordinates ({lat}, {lon}) ceased transmitting AIS data "
-                f"{int(minutes_offline)} minutes ago (severity level: {severity}). "
-                f"In exactly one concise sentence, provide the operational reason why this vessel "
-                f"is flagged as suspicious (e.g., potential unauthorized fishing, transshipment, or distress)."
-            )
+        # Step 3: decide how worried to be.
+        severity = _decide_severity(minutes_dark)
 
-            # Ask AI for an explanation
-            flagged_reason = ask_ai(prompt)
+        # Step 4: ask the AI to explain the flag in one human sentence.
+        reason = _write_reason(vessel, minutes_dark, severity)
 
-            flagged_vessels.append({
-                "vessel_id": vessel_id,
-                "lat": lat,
-                "lon": lon,
-                "flagged_reason": flagged_reason,
-                "severity": severity,
-            })
+        # Step 5: build the alert in the exact shape the dashboard expects.
+        flagged_vessels.append({
+            "vessel_id": vessel["vessel_id"],
+            "lat": vessel["lat"],
+            "lon": vessel["lon"],
+            "flagged_reason": reason,
+            "severity": severity,
+        })
 
     return flagged_vessels
+
+
+def _decide_severity(minutes_dark: float) -> str:
+    """
+    Turn 'minutes of silence' into one of our three severity labels.
+
+        30 - 90 minutes   -> "low"
+        90 min - 4 hours  -> "medium"
+        4+ hours          -> "high"
+    """
+    if minutes_dark >= HIGH_THRESHOLD_MINUTES:
+        return "high"
+    if minutes_dark >= MEDIUM_THRESHOLD_MINUTES:
+        return "medium"
+    return "low"
+
+
+def _parse_time(time_string) -> datetime | None:
+    """
+    Turn an ISO datetime string like "2026-09-12T08:30:00Z" into a real
+    datetime object that we can do maths with.
+
+    Returns None if the string is missing or in a format we don't recognise,
+    so one bad record can never crash the whole agent.
+    """
+    if not time_string:
+        return None
+
+    # Some feeds hand us a real datetime object instead of a string.
+    if isinstance(time_string, datetime):
+        if time_string.tzinfo is None:
+            return time_string.replace(tzinfo=timezone.utc)
+        return time_string.astimezone(timezone.utc)
+
+    try:
+        # Python doesn't always understand the "Z" ending, so swap it for the
+        # spelled-out version of the same thing (+00:00 means UTC).
+        cleaned = str(time_string).replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(cleaned)
+
+        # If the timestamp didn't say which timezone it was in, assume UTC -
+        # that's what ship-tracking feeds use.
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+
+        return parsed
+    except ValueError:
+        return None
+
+
+def _write_reason(vessel: dict, minutes_dark: float, severity: str) -> str:
+    """
+    Ask the AI for a one-sentence, plain-English explanation of the flag.
+
+    If the AI is unavailable (no API key, no internet), we fall back to a
+    simple written-out sentence so the dashboard still has something to show.
+    """
+
+    hours_dark = minutes_dark / 60
+
+    prompt = (
+        "You are a maritime monitoring assistant for a coast guard dashboard.\n"
+        f"Vessel {vessel['vessel_id']} stopped broadcasting its AIS position "
+        f"{int(minutes_dark)} minutes ago ({hours_dark:.1f} hours) at "
+        f"latitude {vessel['lat']}, longitude {vessel['lon']}. "
+        f"The alert severity is '{severity}'.\n"
+        "Write ONE short sentence (maximum 25 words) explaining to an officer "
+        "why this vessel has been flagged - for example possible unauthorised "
+        "fishing, transshipment, or a vessel in distress. Plain English, no "
+        "jargon, no bullet points, no preamble."
+    )
+
+    try:
+        return ask_ai(prompt)
+    except Exception as error:
+        print(f"[WARNING] AI explanation unavailable ({error.__class__.__name__}), "
+              f"using a basic sentence instead.")
+        return (
+            f"Vessel {vessel['vessel_id']} has not reported its position for "
+            f"{int(minutes_dark)} minutes ({hours_dark:.1f} hours), which is "
+            f"a {severity}-severity sign it may have gone dark deliberately."
+        )
