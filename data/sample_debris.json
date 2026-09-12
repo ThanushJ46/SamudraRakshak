@@ -1,0 +1,59 @@
+{
+  "_note": "DEMO DATASET -- Sample marine debris sightings for Maritime Guardian cleanup planner. Realistic coastal coordinates off Bay of Bengal / Coromandel Coast.",
+  "debris_sightings": [
+    {
+      "debris_id": "deb-001",
+      "lat": 13.0827,
+      "lon": 80.3200,
+      "description": "large plastic sheet cluster floating near harbor approach"
+    },
+    {
+      "debris_id": "deb-002",
+      "lat": 13.1205,
+      "lon": 80.3540,
+      "description": "abandoned nylon fishing net tangle (ghost net)"
+    },
+    {
+      "debris_id": "deb-003",
+      "lat": 13.1550,
+      "lon": 80.3800,
+      "description": "floating industrial chemical drum container"
+    },
+    {
+      "debris_id": "deb-004",
+      "lat": 13.0450,
+      "lon": 80.2950,
+      "description": "discarded styrofoam fish crates and plastic bottles"
+    },
+    {
+      "debris_id": "deb-005",
+      "lat": 13.2100,
+      "lon": 80.4100,
+      "description": "submerged synthetic rope and trawl gear cluster"
+    },
+    {
+      "debris_id": "deb-006",
+      "lat": 12.9800,
+      "lon": 80.2800,
+      "description": "dense microplastic and consumer packaging debris patch"
+    },
+    {
+      "debris_id": "deb-007",
+      "lat": 13.1750,
+      "lon": 80.3950,
+      "description": "broken wooden pallet with entangled plastic ropes"
+    },
+    {
+      "debris_id": "deb-008",
+      "lat": 13.0100,
+      "lon": 80.2850,
+      "description": "oil-tainted plastic jerry cans floating near shipping channel"
+    },
+    {
+      "debris_id": "deb-009",
+      "lat": 13.2450,
+      "lon": 80.4350,
+      "description": "tangled monofilament gillnet hazard to marine turtles"
+    }
+  ]
+}
