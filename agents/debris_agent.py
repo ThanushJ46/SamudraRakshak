@@ -5,6 +5,7 @@ Given the cleanup boat's starting coordinate and a list of ocean debris sighting
 this agent plans an efficient collection route using the Nearest-Neighbor algorithm.
 """
 
+import copy
 import math
 
 
@@ -44,21 +45,46 @@ def plan_cleanup_route(start: dict, debris_list: list[dict]) -> dict:
             "waypoints": [{"lat": float, "lon": float}, ...],
             "total_distance_km": float
         }
+
+    Notes:
+        - This function does NOT mutate the input debris_list (uses a deep copy).
+        - Items missing a "debris_id" key are skipped with a printed warning.
     """
+    start_wp = {"lat": round(start["lat"], 4), "lon": round(start["lon"], 4)}
+
     # If the debris list is empty, return an empty plan
     if not debris_list:
         return {
             "visit_order": [],
-            "waypoints": [{"lat": round(start["lat"], 4), "lon": round(start["lon"], 4)}],
+            "waypoints": [start_wp],
             "total_distance_km": 0.0,
         }
 
-    # Track unvisited sightings (make a shallow copy of the input list)
-    unvisited = list(debris_list)
+    # Deep copy so we never mutate the caller's list or its dict objects
+    unvisited = copy.deepcopy(debris_list)
 
+    # Validate and filter: every item must have debris_id, lat, lon
+    valid_items = []
+    for item in unvisited:
+        if "debris_id" not in item or "lat" not in item or "lon" not in item:
+            print(
+                f"[DebrisAgent Warning] Skipping invalid debris item "
+                f"(missing required keys): {item}"
+            )
+            continue
+        valid_items.append(item)
+
+    if not valid_items:
+        return {
+            "visit_order": [],
+            "waypoints": [start_wp],
+            "total_distance_km": 0.0,
+        }
+
+    unvisited = valid_items
     current_pos = {"lat": start["lat"], "lon": start["lon"]}
     visit_order = []
-    waypoints = [{"lat": round(start["lat"], 4), "lon": round(start["lon"], 4)}]
+    waypoints = [start_wp]
     total_distance = 0.0
 
     # Nearest-neighbor search loop
