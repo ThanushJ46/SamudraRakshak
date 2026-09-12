@@ -5,6 +5,7 @@ from agents.dark_vessel_agent import find_dark_vessels
 from agents.route_agent import optimize_route
 from agents.debris_agent import plan_cleanup_route
 from utils.gfw_client import get_vessel_positions, generate_sample_vessels
+from utils.triage import triage_alerts
 
 MEMORY_FILE_PATH = "data/flagged_history.json"
 DEBRIS_FILE_PATH = "data/sample_debris.json"
@@ -189,7 +190,8 @@ def check_dark_vessels(area: dict = None, use_demo_data: bool = False) -> dict:
                 #                        or None if no response is needed
                 ...
             ],
-            "data_source": "live" | "demo" | "demo (live call failed)"
+            "data_source": "live" | "demo" | "demo (live call failed)",
+            "triage": {"ranking": [...], "reasoning": str, "available": bool}
         }
 
     The "data_source" value reports what ACTUALLY ran, not what was asked for.
@@ -291,9 +293,17 @@ def check_dark_vessels(area: dict = None, use_demo_data: bool = False) -> dict:
     for vessel in vessels_needing_response[:MAX_INTERCEPTIONS_PER_SCAN]:
         vessel["interception"] = plan_interception(vessel)
 
+    # ---- Ask the model to decide what to act on first -------------------
+    # Everything above this line was decided by rules. This is the one step
+    # where the AI weighs the whole set against itself and produces a
+    # judgement - which the officer can disagree with, because the reasoning
+    # is shown alongside it.
+    triage = triage_alerts(all_flagged_vessels)
+
     return {
         "vessels": all_flagged_vessels,
         "data_source": data_source,
+        "triage": triage,
     }
 
 

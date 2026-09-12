@@ -243,6 +243,41 @@ with results_column:
         if not flagged_vessels:
             st.success("No vessels are currently dark in this area.")
 
+# ---- AI triage: what to act on first -----------------------------------
+# This panel is the one place the AI made a DECISION rather than describing
+# one. Its reasoning is shown so the officer can disagree with it.
+if result and result.get("triage") and result["vessels"]:
+    triage = result["triage"]
+
+    st.markdown(
+        '<div class="sr-section-title"><div class="bar"></div>'
+        '<h3 style="margin:0;font-size:1.1rem;">🧠 AI Triage &mdash; what to act on first</h3>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    if triage["available"]:
+        st.caption(
+            "The rules above decided *what* each vessel is. This ranking is the "
+            "model weighing them against each other with one patrol boat "
+            "available — its reasoning is shown so you can disagree with it."
+        )
+    else:
+        st.warning(
+            "AI triage unavailable — showing the rule-based order instead. "
+            "The dashboard says which one you are looking at rather than "
+            "passing one off as the other."
+        )
+
+    if triage["ranking"]:
+        order_line = " → ".join(
+            f"**{index}. {name}**" if index == 1 else f"{index}. {name}"
+            for index, name in enumerate(triage["ranking"], start=1)
+        )
+        st.markdown(order_line)
+
+    st.info(triage["reasoning"])
+
 # ===========================================================================
 # HOW EACH CATEGORY IS PRESENTED
 #

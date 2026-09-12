@@ -260,12 +260,24 @@ Give it TWICE: first in Tamil, then in English, each on its own line,
 prefixed exactly 'TA:' and 'EN:'. Be calm and helpful - this is a warning to
 protect them, not an accusation. No preamble."""
 
+    # Appended in code rather than asked of the model, so it is guaranteed to
+    # be there. The distance in this message is measured from an APPROXIMATE
+    # demo boundary - sending that to a real fisherman as fact would be
+    # indefensible, so the caveat travels with the message itself and not just
+    # in the README.
+    disclaimer = (
+        chr(10)
+        + "[DEMO ONLY - distance is measured from an approximate boundary, "
+        + "not surveyed coordinates. Not for navigation.]"
+    )
+
     try:
-        return ask_ai(prompt)
+        return ask_ai(prompt) + disclaimer
     except Exception as error:
         print(f"[WARNING] Could not draft fisherman warning ({error.__class__.__name__}), "
               f"using a fixed bilingual message.")
         return (
             f"""TA: எச்சரிக்கை: நீங்கள் கடல் எல்லையிலிருந்து {distance_km:.1f} கி.மீ. தொலைவில் உள்ளீர்கள். இந்திய கடல் பகுதிக்குத் திரும்பி, AIS கருவியை உடனே இயக்கவும்.
 EN: Warning: you are {distance_km:.1f} km from the maritime boundary. Turn back towards Indian waters and switch your AIS transponder on immediately."""
+            + disclaimer
         )

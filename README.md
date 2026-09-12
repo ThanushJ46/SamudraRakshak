@@ -170,6 +170,29 @@ button — `foreign_intrusion`, `border_safety_alert` and
 a boat for a radio fault in open water is a waste. Capped at three per scan, so
 a busy area cannot stall the dashboard.
 
+### AI triage: the one decision the model makes
+
+Everywhere else the model writes prose about a conclusion the rules already
+reached — delete it and every decision comes out the same. `utils/triage.py` is
+different. It hands the model every flagged vessel (flag, category, severity,
+distance, times seen before), tells it there is **one** patrol boat available,
+and asks for a ranked order **with reasoning**:
+
+> 1. FOR-THA-7719 → 2. IND-TN-1355 → 3. UNK-GHOST-6603 → …
+>
+> *"The high-severity foreign intrusion is the greatest enforcement priority,
+> so I would dispatch the patrol boat to intercept and verify it first. Next,
+> the Indian-flagged vessel close to the boundary requires a safety check…"*
+
+That is a judgement across a competing set with no threshold that settles it,
+and the reasoning is shown so the officer can disagree with it. If the model is
+unavailable the panel falls back to the rule-based order **and says so**, rather
+than passing one off as the other.
+
+The division is deliberate: **rules decide anything an enforcement action
+depends on** (auditable, reproducible), the **model handles what rules are bad
+at** — weighing priorities, and writing Tamil.
+
 ### The warning we send our own fishermen
 
 For a `border_safety_alert` the system drafts the message you would actually
@@ -180,10 +203,20 @@ radio or text to that boat, **in Tamil and English**:
 > EN: You are 6.0 km from the boundary. Please turn back toward Indian waters
 > and turn AIS on.
 
-This is the one place the AI does something only an AI can do — the same short
-warning, in two languages, in the right tone. Everything else it writes is
-explanation; this is output somebody acts on. If Groq is unavailable a fixed
-bilingual message is used instead, so an officer always has something to send.
+Every message ends with a disclaimer appended **in code**, not asked of the
+model, so it cannot be separated from the number it qualifies:
+
+```
+[DEMO ONLY - distance is measured from an approximate boundary,
+ not surveyed coordinates. Not for navigation.]
+```
+
+That matters because the distance is measured from a boundary we drew. Sending
+an invented number to a real fisherman as fact would be indefensible, so the
+caveat travels with the message rather than sitting only in this README.
+
+If Groq is unavailable a fixed bilingual message is used instead, so an officer
+always has something to send.
 
 ### Memory that affects decisions
 
@@ -314,6 +347,28 @@ optimize_route(start: dict, end: dict) -> dict
 #     "baseline_fuel_liters": float, "estimated_fuel_liters": float}
 ```
 
+**How the saving is earned.** Fuel is charged per kilometre with a wind
+penalty — `3.5 L/km x (1 + 0.01 x wind_kmh)` — so rough water genuinely costs
+more per km. The agent samples real Open-Meteo wind at five positions offset up
+to 30 km either side of the direct line, at three points along the route, picks
+the calmest, then **costs both paths and takes the detour only if it actually
+comes out cheaper.** If it does not, the direct route is returned and **no
+saving is claimed**.
+
+| Route | Straight | Path taken | Baseline | Optimised | Saving |
+|---|---|---|---|---|---|
+| Rameswaram → Chennai | 434.7 km | 450.4 km | 1809.9 L | 1792.7 L | 0.9% |
+| Kochi → Colombo | 517.5 km | 522.8 km | 2190.1 L | 2176.2 L | 0.6% |
+| Rameswaram → Tuticorin | 141.9 km | 141.9 km | 576.1 L | 576.1 L | **0.0%** |
+
+The savings are **small — under 1%** — and that is the honest figure. The
+0.01 wind coefficient is an approximate demo value, but the saving is
+*computed from it and from the path actually chosen*.
+
+> An earlier version applied a fixed 5–15% discount to the baseline regardless
+> of the route, and reported "saved 9.9%" on a journey that was 0.2% longer and
+> more expensive. That was wrong and has been removed.
+
 ### `agents/debris_agent.py`
 
 ```python
@@ -336,7 +391,8 @@ check_dark_vessels(area: dict = None, use_demo_data: bool = False) -> dict
 #                   "times_flagged": int,
 #                   "previous_category": str | None,
 #                   "interception": dict | None],
-#     "data_source": "live" | "demo" | "demo (live call failed)"}
+#     "data_source": "live" | "demo" | "demo (live call failed)",
+#     "triage": {"ranking": [...], "reasoning": str, "available": bool}}
 
 get_optimized_route(start: dict, end: dict) -> dict
 get_cleanup_plan(start: dict) -> dict
@@ -374,11 +430,13 @@ SamudraRakshak/
 │   ├── llm_client.py           Shared Groq client
 │   ├── gfw_client.py           GFW client + demo generator + boundary line
 │   ├── zone_utils.py           Boundary geometry + vessel classification
-│   └── sea_route.py            Offshore waypoints so routes stay at sea
+│   ├── sea_route.py            Offshore waypoints so routes stay at sea
+│   └── triage.py               AI ranking of what to act on first
 ├── data/
 │   └── sample_debris.json      Sample debris sightings
 ├── .streamlit/
 │   └── config.toml             Streamlit theme (currently defaults)
+├── DEFENCE.md                  Answers to the hard questions - read before judging
 ├── test_person_a.py            Foundation layer checks
 ├── test_person_b.py            Route + debris agent checks
 ├── requirements.txt
@@ -391,6 +449,18 @@ SamudraRakshak/
 
 Things we would fix with more time, stated plainly rather than hidden:
 
+- **Weather routing is a marginal gain.** Under 1% on the routes we tested,
+  and 0% where the detour does not pay. That is the real figure; we report it
+  rather than a flattering one. The wind-to-fuel coefficient (0.01 per km/h) is
+  an approximate demo value.
+- **Four demo vessels are placed deliberately.** `PINNED_SAMPLE_POSITIONS` in
+  `gfw_client.py` puts them at 6, 9, 35 and 55 km from the boundary so a demo
+  reliably exercises all four categories instead of depending on luck. The
+  classification logic they exercise is not itself rigged, but the demo data is
+  arranged — stated here rather than left to be discovered.
+- **The Tamil warning is generated, not delivered.** There is no SMS or VHF
+  integration. The system identifies which boat needs warning and drafts the
+  message; sending it is not built.
 - **Demo scans cost a few AI calls.** Each `medium`/`high` vessel costs one
   call, so a demo scan takes about 5 seconds. Live scans are now *fast* rather
   than slow, but for an unhelpful reason: real vessels are almost always more
