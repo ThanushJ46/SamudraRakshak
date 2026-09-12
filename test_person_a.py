@@ -113,6 +113,11 @@ for number, alert in enumerate(alerts, start=1):
           f"({alert['distance_to_border_km']} km from boundary)")
     print(f"  Flag      : {alert['flag'] or 'unknown'}")
     print(f"  Reason    : {alert['flagged_reason']}")
+    if alert.get("warning_message"):
+        print(f"  Warning   : (Tamil + English message drafted for this boat)")
+        for message_line in alert["warning_message"].splitlines():
+            if message_line.strip():
+                print(f"              {message_line.strip()}")
     print()
 
 # Check the output shape is exactly what teammates will be importing.
@@ -129,6 +134,7 @@ EXPECTED_KEYS = {
     "severity",
     "category",
     "distance_to_border_km",
+    "warning_message",
 }
 shape_is_correct = all(set(alert.keys()) == EXPECTED_KEYS for alert in alerts)
 
@@ -169,7 +175,8 @@ Shapes you can rely on:
        "flagged_reason": str, "severity": "low" | "medium" | "high",
        "category": "foreign_intrusion" | "border_safety_alert"
                  | "unidentified_near_zone" | "routine_gap",
-       "distance_to_border_km": float}
+       "distance_to_border_km": float,
+       "warning_message": str | None}   # Tamil + English, border alerts only
 
   Vessels classified "routine_gap" are capped at "low" severity and never
   cost an AI call, however long they have been silent.

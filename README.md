@@ -145,6 +145,64 @@ away.
 
 ---
 
+## How the agents work together
+
+The three agents are not three separate tools sharing a page. When the
+dark-vessel agent flags something worth responding to, the orchestrator hands
+that vessel's position **straight to the route agent** and asks for the fastest
+approach from the nearest patrol base:
+
+```
+GFW feed -> Dark-Vessel Agent -> classify -> [needs response?]
+                                                |
+                                                +-- yes -> Route Agent
+                                                           -> interception plan
+```
+
+The officer gets an action, not a red dot:
+
+> 🚤 **Interception plan** — Nearest patrol base **Rameswaram** · **71.8 km** ·
+> ETA **2.1 h** · **211.9 L** fuel
+
+Which vessels get one is decided by category, not by a human pressing a second
+button — `foreign_intrusion`, `border_safety_alert` and
+`unidentified_near_zone` qualify; a `routine_gap` does not, because dispatching
+a boat for a radio fault in open water is a waste. Capped at three per scan, so
+a busy area cannot stall the dashboard.
+
+### The warning we send our own fishermen
+
+For a `border_safety_alert` the system drafts the message you would actually
+radio or text to that boat, **in Tamil and English**:
+
+> TA: நீங்கள் கடல் எல்லையிலிருந்து 6.0 km தொலைவில் இருக்கிறீர்கள். இந்திய
+> நீர்நிலைக்கு திரும்பவும், AIS பரிமாற்றியை மீண்டும் இயக்கவும்.
+> EN: You are 6.0 km from the boundary. Please turn back toward Indian waters
+> and turn AIS on.
+
+This is the one place the AI does something only an AI can do — the same short
+warning, in two languages, in the right tone. Everything else it writes is
+explanation; this is output somebody acts on. If Groq is unavailable a fixed
+bilingual message is used instead, so an officer always has something to send.
+
+### Memory that affects decisions
+
+`data/flagged_history.json` stores each vessel's last severity, last category,
+and how many scans have flagged it. That does two things a severity-only memory
+could not:
+
+- **Catches category escalation.** A boat drifting from `routine_gap` into
+  `border_safety_alert` is marked as new even though its severity stayed `low` —
+  arguably the most important transition there is, and the old check missed it
+  entirely.
+- **Shows repetition.** "Flagged on 4 scans · escalated from *Routine Gap*" is
+  evidence; a single snapshot is not.
+
+Old single-string entries are upgraded on load, so an existing history file
+keeps working.
+
+---
+
 ## Function contracts
 
 Everything below is stable — the dashboard and orchestrator depend on these
@@ -273,12 +331,23 @@ Debris sightings come from `data/sample_debris.json`:
 
 ```python
 check_dark_vessels(area: dict = None, use_demo_data: bool = False) -> dict
-# -> {"vessels": [...each with an extra "is_new": bool...],
+# -> {"vessels": [...each vessel plus:
+#                   "is_new": bool,
+#                   "times_flagged": int,
+#                   "previous_category": str | None,
+#                   "interception": dict | None],
 #     "data_source": "live" | "demo" | "demo (live call failed)"}
 
 get_optimized_route(start: dict, end: dict) -> dict
 get_cleanup_plan(start: dict) -> dict
+
+plan_interception(vessel: dict) -> dict | None
+# -> {"base_name": str, "distance_km": float, "fuel_liters": float,
+#     "eta_hours": float, "waypoints": [...]}
 ```
+
+`PATROL_BASES` (Mandapam, Rameswaram, Tuticorin) and `PATROL_SPEED_KMH` are
+approximate demo figures used only to turn a distance into an ETA.
 
 The orchestrator keeps a small memory in `data/flagged_history.json` (gitignored
 — it is a runtime artifact).
@@ -354,9 +423,10 @@ Things we would fix with more time, stated plainly rather than hidden:
   depends on side, so a foreign boat 1.5 km away on *its* side is a `routine_gap`
   while one 90 km inside our side is an intrusion. Correct by the rules, and
   defensible, but a judge may ask.
-- **`is_new` keys on severity only.** A vessel that drifts from `routine_gap`
-  into `border_safety_alert` while staying `low` is not marked as new — arguably
-  the most important transition to catch.
+- **Interception routes are straight lines.** `plan_interception` calls the
+  route agent directly rather than going through `utils/sea_route.py`, so a
+  long interception can cross land. The legs are usually short and offshore,
+  but it is the same limitation the port routing already solves.
 - **`utils/zone_utils.py` and `utils/sea_route.py` have no unit tests.** They are
   exercised through `test_person_a.py` and by hand only.
 

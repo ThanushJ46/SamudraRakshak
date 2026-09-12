@@ -30,6 +30,9 @@ from agents.orchestrator import (
 )
 from utils.gfw_client import ILLUSTRATIVE_BOUNDARY_LINE
 from utils.sea_route import plan_sea_route
+# The route agent's own fuel figure, reused so the cleanup cost is quoted
+# on exactly the same basis as a route - not a second invented number.
+from agents.route_agent import FUEL_RATE_LITERS_PER_KM
 
 st.set_page_config(page_title="Samudra Rakshak", page_icon="🌊", layout="wide")
 
@@ -409,7 +412,47 @@ if result and result["vessels"]:
     for vessel in result["vessels"]:
         draw_vessel_marker(vessel, vessel_map)
 
+    # Interception routes: the dark-vessel agent's findings handed straight to
+    # the route agent. Drawn dotted so they read as a proposed action rather
+    # than something that has already happened.
+    interceptions_drawn = 0
+    for vessel in result["vessels"]:
+        interception = vessel.get("interception")
+        if not interception:
+            continue
+
+        interceptions_drawn += 1
+        route_points = [[w["lat"], w["lon"]] for w in interception["waypoints"]]
+
+        folium.PolyLine(
+            locations=route_points,
+            color="#0891b2",
+            weight=3,
+            opacity=0.85,
+            dash_array="4, 6",
+            tooltip=(
+                f"Intercept {vessel_display_name(vessel)} from "
+                f"{interception['base_name']} - {interception['distance_km']} km, "
+                f"{interception['eta_hours']} h"
+            ),
+        ).add_to(vessel_map)
+
+        # Mark the patrol base the boat would leave from.
+        folium.Marker(
+            location=route_points[0],
+            tooltip=f"{interception['base_name']} patrol base",
+            icon=folium.Icon(color="blue", icon="flag"),
+        ).add_to(vessel_map)
+
     st_folium(vessel_map, height=450, use_container_width=True)
+
+    if interceptions_drawn:
+        st.caption(
+            f"Dotted blue lines are **interception routes** - the "
+            f"{interceptions_drawn} highest-priority vessels were handed "
+            f"automatically to the Route Agent, which planned the fastest "
+            f"approach from the nearest patrol base."
+        )
 
     st.caption(
         "The dashed red line is an **approximate, illustrative** maritime "
@@ -475,6 +518,44 @@ if result and result["vessels"]:
 
             with st.expander(title, expanded=should_expand):
                 st.write(vessel["flagged_reason"])
+
+                # ---- The message we would actually send our own boat ----
+                if vessel.get("warning_message"):
+                    st.markdown("**📻 Warning to send this boat**")
+                    st.info(vessel["warning_message"])
+                    st.caption(
+                        "Drafted in Tamil and English so it can be read out "
+                        "over radio or sent as an SMS."
+                    )
+
+                # ---- What the route agent says about reaching it --------
+                interception = vessel.get("interception")
+                if interception:
+                    st.markdown("**🚤 Interception plan**")
+                    st.markdown(
+                        f"Nearest patrol base **{interception['base_name']}** · "
+                        f"**{interception['distance_km']} km** · "
+                        f"ETA **{interception['eta_hours']} h** · "
+                        f"**{interception['fuel_liters']} L** fuel"
+                    )
+                    st.caption(
+                        "Planned automatically by the Route Agent from this "
+                        "vessel's position - shown dotted on the map above."
+                    )
+
+                # ---- History from the orchestrator's memory -------------
+                times_flagged = vessel.get("times_flagged", 1)
+                previous_category = vessel.get("previous_category")
+
+                if times_flagged > 1:
+                    history_note = f"Flagged on {times_flagged} scans"
+                    if previous_category and previous_category != vessel["category"]:
+                        was = CATEGORY_META.get(previous_category, {}).get(
+                            "label", previous_category
+                        )
+                        history_note += f" · escalated from *{was}*"
+                    st.caption(history_note)
+
                 st.caption(
                     f"{vessel_flag_label(vessel)} · ID {vessel['vessel_id']} · "
                     f"Position: {vessel['lat']:.4f}, {vessel['lon']:.4f} "
@@ -713,6 +794,16 @@ with cleanup_results:
                 </div>""",
                 unsafe_allow_html=True,
             )
+
+        # What the round actually costs to sail, using the route agent's fuel
+        # model - so a planner can weigh the cleanup against its fuel burn.
+        cleanup_fuel_liters = round(
+            cleanup_result["total_distance_km"] * FUEL_RATE_LITERS_PER_KM, 1
+        )
+        st.markdown(
+            f"Estimated fuel for this round: **{cleanup_fuel_liters} L** "
+            f"({FUEL_RATE_LITERS_PER_KM} L/km)"
+        )
 
         if visit_order:
             st.markdown("**Collection order**")

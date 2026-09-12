@@ -50,7 +50,9 @@ def find_dark_vessels(vessel_list: list[dict]) -> list[dict]:
                  "category": str,                # see utils.zone_utils
                  "distance_to_border_km": float, # to the illustrative boundary
                  "vessel_name": str | None,      # readable name if we have one
-                 "flag": str | None}             # ISO-3 flag state, e.g. "IND"
+                 "flag": str | None,             # ISO-3 flag state, e.g. "IND"
+                 "warning_message": str | None}  # Tamil + English warning,
+                                                 # only for border_safety_alert
 
             Vessels that are reporting normally are simply left out.
 
@@ -103,7 +105,16 @@ def find_dark_vessels(vessel_list: list[dict]) -> list[dict]:
         else:
             reason = _write_reason(vessel, minutes_dark, severity)
 
-        # Step 6: build the alert in the exact shape the dashboard expects.
+        # Step 6: if this is one of OUR boats near the line, write the message
+        # we would actually radio or text to them. Only for this category -
+        # there is no point drafting a friendly warning for a foreign
+        # trawler or for a radio fault in open water.
+        if category == "border_safety_alert":
+            warning_message = _write_fisherman_warning(vessel, minutes_dark, distance_km)
+        else:
+            warning_message = None
+
+        # Step 7: build the alert in the exact shape the dashboard expects.
         flagged_vessels.append({
             "vessel_id": vessel["vessel_id"],
             # Live GFW ids are unreadable hex, so pass the real name and flag
@@ -116,6 +127,8 @@ def find_dark_vessels(vessel_list: list[dict]) -> list[dict]:
             "severity": severity,
             "category": category,
             "distance_to_border_km": round(distance_km, 1),
+            # Only set for "border_safety_alert"; None otherwise.
+            "warning_message": warning_message,
         })
 
     return flagged_vessels
@@ -213,4 +226,46 @@ def _write_reason(vessel: dict, minutes_dark: float, severity: str) -> str:
             f"Vessel {vessel['vessel_id']} has not reported its position for "
             f"{int(minutes_dark)} minutes ({hours_dark:.1f} hours), which is "
             f"a {severity}-severity sign it may have gone dark deliberately."
+        )
+
+
+def _write_fisherman_warning(vessel: dict, minutes_dark: float, distance_km: float) -> str:
+    """
+    Draft the message we would send to one of OUR OWN fishing boats that has
+    gone quiet near the maritime boundary.
+
+    This is the one place the AI does something only an AI can do: write the
+    same short warning in Tamil and in English, in the right tone. It is a
+    heads-up to a fisherman who may be about to cross a line and be detained -
+    not an accusation, and not an enforcement notice.
+
+    Falls back to a fixed bilingual message if the AI is unavailable, so an
+    officer always has something to send.
+    """
+    boat_label = vessel.get("vessel_name") or vessel["vessel_id"]
+
+    prompt = f"""You are drafting a short safety warning for a small Indian fishing
+boat that is close to a maritime boundary and has stopped broadcasting its
+AIS position.
+
+Boat: {boat_label}.
+Distance from the boundary: {distance_km:.1f} km.
+Silent for {int(minutes_dark)} minutes.
+
+Write a warning of at most 25 words, telling them how far they are from the
+boundary, to turn back towards Indian waters, and to switch their AIS
+transponder back on.
+
+Give it TWICE: first in Tamil, then in English, each on its own line,
+prefixed exactly 'TA:' and 'EN:'. Be calm and helpful - this is a warning to
+protect them, not an accusation. No preamble."""
+
+    try:
+        return ask_ai(prompt)
+    except Exception as error:
+        print(f"[WARNING] Could not draft fisherman warning ({error.__class__.__name__}), "
+              f"using a fixed bilingual message.")
+        return (
+            f"""TA: எச்சரிக்கை: நீங்கள் கடல் எல்லையிலிருந்து {distance_km:.1f} கி.மீ. தொலைவில் உள்ளீர்கள். இந்திய கடல் பகுதிக்குத் திரும்பி, AIS கருவியை உடனே இயக்கவும்.
+EN: Warning: you are {distance_km:.1f} km from the maritime boundary. Turn back towards Indian waters and switch your AIS transponder on immediately."""
         )
