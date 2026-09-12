@@ -431,7 +431,8 @@ SamudraRakshak/
 │   ├── gfw_client.py           GFW client + demo generator + boundary line
 │   ├── zone_utils.py           Boundary geometry + vessel classification
 │   ├── sea_route.py            Offshore waypoints so routes stay at sea
-│   └── triage.py               AI ranking of what to act on first
+│   ├── triage.py               AI ranking of what to act on first
+│   └── fisherman_page.py       Offline geofence file for the boat
 ├── data/
 │   └── sample_debris.json      Sample debris sightings
 ├── .streamlit/
@@ -461,6 +462,14 @@ Things we would fix with more time, stated plainly rather than hidden:
 - **The Tamil warning is generated, not delivered.** There is no SMS or VHF
   integration. The system identifies which boat needs warning and drafts the
   message; sending it is not built.
+- **The fisherman geofence is not packaged as an app.** `utils/fisherman_page.py`
+  builds a self-contained HTML file with the boundary and the distance maths
+  baked in and no external resources, so the geofence genuinely needs no
+  network — its JS was verified to produce the same distances as the Python to
+  three decimals. But phone browsers only grant geolocation to a secure origin,
+  so opening that file straight off the filesystem does **not** get a GPS fix.
+  Shipping it for real means an installable PWA. The logic is finished; the
+  packaging is not.
 - **Demo scans cost a few AI calls.** Each `medium`/`high` vessel costs one
   call, so a demo scan takes about 5 seconds. Live scans are now *fast* rather
   than slow, but for an unhelpful reason: real vessels are almost always more

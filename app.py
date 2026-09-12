@@ -30,6 +30,11 @@ from agents.orchestrator import (
 )
 from utils.gfw_client import ILLUSTRATIVE_BOUNDARY_LINE
 from utils.sea_route import plan_sea_route
+from utils.fisherman_page import (
+    CAUTION_DISTANCE_KM,
+    DANGER_DISTANCE_KM,
+    build_offline_alert_page,
+)
 # The route agent's own fuel figure, reused so the cleanup cost is quoted
 # on exactly the same basis as a route - not a second invented number.
 from agents.route_agent import FUEL_RATE_LITERS_PER_KM
@@ -901,4 +906,129 @@ if cleanup_result and cleanup_result["visit_order"]:
     st.caption(
         "Numbers show the order the boat collects each sighting, planned with "
         "a nearest-neighbour route."
+    )
+
+
+# ===========================================================================
+# FISHERMAN ALERT - the delivery end of the system
+#
+# Everything above this point is the authority's view. This is the fisherman's.
+#
+# It matters because of the awkward truth in the rest of this project: the boat
+# we most want to warn is the one that has gone dark, and a dark boat is the
+# one a shore station can least reach. GPS only RECEIVES - it needs no signal -
+# so a warning that lives ON the boat keeps working when AIS does not.
+# ===========================================================================
+st.markdown("---")
+st.markdown(
+    '<div class="sr-section-title"><div class="bar"></div>'
+    '<h2 style="margin:0;font-size:1.35rem;">📱 Fisherman Alert</h2></div>',
+    unsafe_allow_html=True,
+)
+st.write(
+    "What the crew sees on their own phone. The geofence runs on GPS alone - "
+    "no network and no AIS - which matters because the boat we most need to "
+    "warn is the one that has gone dark."
+)
+
+fisherman_controls, fisherman_screen = st.columns([1, 1])
+
+with fisherman_controls:
+    st.caption(
+        "Drag to simulate the boat approaching the boundary, as it would be "
+        "read from GPS on board."
+    )
+    simulated_distance_km = st.slider(
+        "Distance from boundary (km)",
+        min_value=0.0,
+        max_value=30.0,
+        value=14.0,
+        step=0.5,
+    )
+
+    # Thresholds match the shore-side rules, so the fisherman and the coast
+    # guard are working to the same numbers.
+    if simulated_distance_km < DANGER_DISTANCE_KM:
+        alert_state = "danger"
+    elif simulated_distance_km < CAUTION_DISTANCE_KM:
+        alert_state = "caution"
+    else:
+        alert_state = "safe"
+
+    st.download_button(
+        "⬇️ Download the geofence file",
+        data=build_offline_alert_page(),
+        file_name="samudra_rakshak_alert.html",
+        mime="text/html",
+        help="One self-contained HTML file with the boundary baked in. No map "
+             "tiles, no CDN, no API calls - the geofence needs no network.",
+    )
+    st.caption(
+        "The boundary and the distance maths are baked in, so **no network is "
+        "needed to work out how close the boat is** - GPS only receives. "
+        "Shipping this for real means packaging it as an installable app "
+        "(a PWA): phone browsers only hand GPS to pages from a secure origin, "
+        "so opening this file straight off the filesystem will not get a fix. "
+        "The logic is what is finished here; the packaging is not."
+    )
+
+# How each state is drawn on the simulated phone screen.
+FISHERMAN_STATES = {
+    "safe": {
+        "background": "#14532d",
+        "tamil": "பாதுகாப்பாக உள்ளீர்கள்",
+        "english": "SAFE",
+        "message": "You are well clear of the boundary. Good fishing.",
+    },
+    "caution": {
+        "background": "#854d0e",
+        "tamil": "எச்சரிக்கை",
+        "english": "CAUTION",
+        "message": "Boundary is close. Stay alert and keep your AIS on.",
+    },
+    "danger": {
+        "background": "#7f1d1d",
+        "tamil": "எல்லைக்கு மிக அருகில்!",
+        "english": "TOO CLOSE - TURN BACK",
+        "message": "Turn back towards Indian waters now.",
+    },
+}
+
+with fisherman_screen:
+    style = FISHERMAN_STATES[alert_state]
+
+    # A phone-shaped panel, so it reads as the crew's device and not as
+    # another chart on the authority's dashboard.
+    st.markdown(
+        f"""
+        <div style="max-width:300px;margin:0 auto;border:10px solid #1e293b;
+                    border-radius:30px;overflow:hidden;
+                    box-shadow:0 6px 20px rgba(0,0,0,0.35);">
+          <div style="background:{style['background']};padding:26px 18px;
+                      text-align:center;color:#ffffff;">
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;">
+              {style['tamil']}
+            </div>
+            <div style="font-size:1.4rem;font-weight:800;line-height:1.15;">
+              {style['english']}
+            </div>
+            <div style="font-size:2.9rem;font-weight:800;margin:12px 0 0 0;">
+              {simulated_distance_km:.1f}
+            </div>
+            <div style="font-size:0.72rem;opacity:0.85;">
+              km from boundary · எல்லையிலிருந்து கி.மீ.
+            </div>
+          </div>
+          <div style="background:#111c2e;padding:14px;color:#cbd5e1;
+                      font-size:0.82rem;line-height:1.45;">
+            {style['message']}
+          </div>
+          <div style="background:#1c1917;padding:9px 14px;color:#a8a29e;
+                      font-size:0.62rem;line-height:1.4;">
+            DEMO ONLY — approximate boundary, not surveyed coordinates.
+            Not for navigation.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
