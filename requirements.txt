@@ -1,3 +1,6 @@
-google-generativeai
+# Person A (foundation layer) dependencies.
+# Teammates: add your packages below, don't replace this file.
+
+groq
 python-dotenv
 requests
