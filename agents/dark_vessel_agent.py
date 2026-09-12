@@ -20,7 +20,9 @@ from datetime import datetime, timezone
 # (python agents/dark_vessel_agent.py) rather than imported from the root.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from utils.gfw_client import ILLUSTRATIVE_BOUNDARY_LINE
 from utils.llm_client import ask_ai
+from utils.zone_utils import classify_vessel, distance_point_to_line_km, which_side
 
 # A vessel is only interesting once it has been silent this long.
 DARK_THRESHOLD_MINUTES = 30
@@ -44,9 +46,19 @@ def find_dark_vessels(vessel_list: list[dict]) -> list[dict]:
                  "lat": float,
                  "lon": float,
                  "flagged_reason": str,          # one plain-English sentence
-                 "severity": "low" | "medium" | "high"}
+                 "severity": "low" | "medium" | "high",
+                 "category": str,                # see utils.zone_utils
+                 "distance_to_border_km": float, # to the illustrative boundary
+                 "vessel_name": str | None,      # readable name if we have one
+                 "flag": str | None}             # ISO-3 flag state, e.g. "IND"
 
             Vessels that are reporting normally are simply left out.
+
+            Vessels categorised as "routine_gap" are capped at "low" severity
+            no matter how long they have been silent, and never cost an AI
+            call. A boat silent for ten hours in open water is a radio fault,
+            not an incident - treating it as "high" was drowning the real
+            alerts in noise.
     """
 
     flagged_vessels = []
@@ -66,19 +78,44 @@ def find_dark_vessels(vessel_list: list[dict]) -> list[dict]:
         if minutes_dark <= DARK_THRESHOLD_MINUTES:
             continue
 
-        # Step 3: decide how worried to be.
+        # Step 3: work out WHERE this vessel is relative to the sensitive
+        # boundary, and what kind of situation that makes it.
+        distance_km = distance_point_to_line_km(vessel, ILLUSTRATIVE_BOUNDARY_LINE)
+        side = which_side(vessel, ILLUSTRATIVE_BOUNDARY_LINE)
+        category = classify_vessel(vessel, distance_km, side)
+
+        # Step 4: decide how worried to be.
         severity = _decide_severity(minutes_dark)
 
-        # Step 4: ask the AI to explain the flag in one human sentence.
-        reason = _write_reason(vessel, minutes_dark, severity)
+        # Step 5: a "routine_gap" is a boat that went quiet in open water,
+        # far from anything sensitive. However long it has been silent, that
+        # is a radio fault and not an incident - so we cap it at "low", give
+        # it a plainly different sentence, and skip the AI call entirely.
+        # Without this cap, a ten-hour dropout in the middle of nowhere
+        # showed up as "high" and buried the alerts that actually matter.
+        if category == "routine_gap":
+            severity = "low"
+            reason = (
+                f"Silent for {int(minutes_dark)} minutes, {distance_km:.1f}km "
+                f"from the nearest sensitive zone - likely a routine gap, not "
+                f"flagged as suspicious."
+            )
+        else:
+            reason = _write_reason(vessel, minutes_dark, severity)
 
-        # Step 5: build the alert in the exact shape the dashboard expects.
+        # Step 6: build the alert in the exact shape the dashboard expects.
         flagged_vessels.append({
             "vessel_id": vessel["vessel_id"],
+            # Live GFW ids are unreadable hex, so pass the real name and flag
+            # through for the dashboard to show instead. Both can be None.
+            "vessel_name": vessel.get("vessel_name"),
+            "flag": vessel.get("flag"),
             "lat": vessel["lat"],
             "lon": vessel["lon"],
             "flagged_reason": reason,
             "severity": severity,
+            "category": category,
+            "distance_to_border_km": round(distance_km, 1),
         })
 
     return flagged_vessels

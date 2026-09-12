@@ -102,6 +102,49 @@ appear and the logic is actually visible.
 
 ---
 
+## Boundary-aware classification
+
+Early on, the dark-vessel agent treated every silent boat the same. That was
+the wrong behaviour twice over: a trawler whose radio died in open water got the
+same `high` alert as a foreign vessel sitting inside our waters, and one of our
+own fishermen drifting towards the boundary was reported as a threat rather than
+as somebody who needs warning.
+
+Every dark vessel is now measured against an illustrative maritime boundary and
+sorted into one of four categories:
+
+| Category | Rule | What it means |
+|---|---|---|
+| 🚩 `foreign_intrusion` | Foreign flag, on our side of the line, any distance | The serious one |
+| ⚠️ `border_safety_alert` | Our own flag (`IND`), within 10 km of the line | **Warn a friend, not an accusation** — a local boat may be about to cross |
+| ❓ `unidentified_near_zone` | No flag at all, within 15 km, either side | We do not know whose it is |
+| ℹ️ `routine_gap` | Everything else, and anything over 200 km away | Almost always just a radio fault |
+
+`routine_gap` vessels are **capped at `low` severity however long they have been
+silent, and never cost an AI call.** A boat quiet for ten hours in open water is
+a broken radio, not an incident — before the cap it scored `high` and buried the
+alerts that actually mattered.
+
+Classification is driven by the vessel's **flag state**, not by its id. Live GFW
+ids are meaningless hex strings (`054b3f2fd-d468-e27f-6ba5-03b9b6fefb11`), so an
+id-based rule classified every real vessel as unidentified and the whole layer
+silently did nothing on live data. GFW does send a `flag` and a real `name`, and
+we now keep both — so a live alert reads *Z19 BRIGITTE · Flag: BEL* instead of
+hex.
+
+The 200 km cut-off is not cosmetic. The boundary is an infinite line, so without
+it every foreign vessel west of that line counted as "on our side" — scanning
+the North Sea flagged 17 Belgian and Danish trawlers as intrusions from 9,000 km
+away.
+
+> ⚠️ **The boundary is approximate.** `ILLUSTRATIVE_BOUNDARY_LINE` in
+> `utils/gfw_client.py` is for demo visualisation only — **not** surveyed or
+> legal maritime boundary coordinates. It is drawn dashed on the map and
+> labelled as such for exactly that reason. Do not use it for navigation or any
+> real enforcement decision.
+
+---
+
 ## Function contracts
 
 Everything below is stable — the dashboard and orchestrator depend on these
@@ -132,7 +175,17 @@ generate_sample_vessels(area: dict) -> list[dict] # demo data; never raises
 Both return a list of:
 
 ```python
-{"vessel_id": str, "lat": float, "lon": float, "last_position_time": "2026-09-12T08:30:00Z"}
+{"vessel_id": str,
+ "vessel_name": str | None,   # real name from GFW, or the id for demo data
+ "flag": str | None,          # ISO-3 flag state, e.g. "IND"; None = unidentified
+ "lat": float, "lon": float,
+ "last_position_time": "2026-09-12T08:30:00Z"}
+```
+
+This module also exports the boundary the classifier measures against:
+
+```python
+ILLUSTRATIVE_BOUNDARY_LINE  # [{"lat": 9.0, "lon": 79.6}, {"lat": 10.5, "lon": 80.0}]
 ```
 
 There is **no hidden fallback** between them. `get_vessel_positions` raises on a
@@ -148,13 +201,52 @@ find_dark_vessels(vessel_list: list[dict]) -> list[dict]
 Takes the list above, returns only the suspicious ones:
 
 ```python
-{"vessel_id": str, "lat": float, "lon": float,
- "flagged_reason": str, "severity": "low" | "medium" | "high"}
+{"vessel_id": str,
+ "vessel_name": str | None,
+ "flag": str | None,
+ "lat": float, "lon": float,
+ "flagged_reason": str,
+ "severity": "low" | "medium" | "high",
+ "category": "foreign_intrusion" | "border_safety_alert"
+            | "unidentified_near_zone" | "routine_gap",
+ "distance_to_border_km": float}
 ```
 
 `flagged_reason` is one plain-English sentence. `medium` and `high` get an
-AI-written sentence; `low` gets a fast templated one, so a busy scan stays
-responsive.
+AI-written sentence; `low` and `routine_gap` get a fast templated one, so a busy
+scan stays responsive. See **Boundary-aware classification** above for what the
+categories mean.
+
+### `utils/zone_utils.py`
+
+```python
+distance_point_to_line_km(point: dict, line: list) -> float  # perpendicular, km
+which_side(point: dict, line: list) -> "india_side" | "other_side"
+vessel_origin(vessel: dict) -> "ours" | "foreign" | "unknown"
+classify_vessel(vessel: dict, distance_km: float, side: str) -> str
+```
+
+Plain geometry, no dependencies beyond `math`. `distance_point_to_line_km`
+measures against the **infinite** line through the two points, not the segment,
+so a vessel off the northern end still counts as near the line.
+`vessel_origin` prefers the vessel's `flag` and falls back to the `IND-`/`FOR-`/
+`UNK-` id prefixes, so older sample data still classifies.
+
+### `utils/sea_route.py`
+
+```python
+plan_sea_route(start_port_name: str, end_port_name: str, port_presets: dict) -> list
+```
+
+Returns the ordered points a voyage should sail through, including offshore
+waypoints. This exists because the route agent computes great-circle lines and
+knows nothing about land — asked for Rameswaram → Kochi in one go it drew a
+straight line **across Tamil Nadu and Kerala**. The dashboard now calls the
+route agent once per short leg and stitches the results, which keeps the path at
+sea without changing the agent at all.
+
+> ⚠️ The offshore waypoints are eyeballed approximations for demo
+> visualisation — **not** charted shipping lanes or navigational waypoints.
 
 ### `agents/route_agent.py`
 
@@ -211,9 +303,13 @@ SamudraRakshak/
 │   └── orchestrator.py         Ties the three together + memory
 ├── utils/
 │   ├── llm_client.py           Shared Groq client
-│   └── gfw_client.py           Global Fishing Watch client + demo generator
+│   ├── gfw_client.py           GFW client + demo generator + boundary line
+│   ├── zone_utils.py           Boundary geometry + vessel classification
+│   └── sea_route.py            Offshore waypoints so routes stay at sea
 ├── data/
 │   └── sample_debris.json      Sample debris sightings
+├── .streamlit/
+│   └── config.toml             Streamlit theme (currently defaults)
 ├── test_person_a.py            Foundation layer checks
 ├── test_person_b.py            Route + debris agent checks
 ├── requirements.txt
@@ -226,11 +322,12 @@ SamudraRakshak/
 
 Things we would fix with more time, stated plainly rather than hidden:
 
-- **Live scans are slow.** Each `medium`/`high` vessel costs one AI call, and
-  real GFW data is always `high` severity — so a busy area of 17 vessels takes
-  roughly 60 seconds. Demo mode is about 6 seconds. `MAX_RESULTS` in
-  `gfw_client.py` caps this at 20 vessels; the next step would be capping how
-  many vessels get an AI sentence at all.
+- **Demo scans cost a few AI calls.** Each `medium`/`high` vessel costs one
+  call, so a demo scan takes about 5 seconds. Live scans are now *fast* rather
+  than slow, but for an unhelpful reason: real vessels are almost always more
+  than 200 km from our illustrative boundary, so they classify as `routine_gap`
+  and skip the AI entirely. `MAX_RESULTS` in `gfw_client.py` caps a scan at 20
+  vessels.
 - **Severity bands cannot be exercised by live data**, for the batch-data reason
   explained above.
 - **The default area (Gulf of Mannar) has no live GFW coverage.** It returns zero
@@ -241,8 +338,27 @@ Things we would fix with more time, stated plainly rather than hidden:
   3.13 wheel — pip tried to compile numpy from source and failed with
   `NumPy requires GCC >= 8.4`, making the project impossible to install. Please
   do not re-pin them without checking Python 3.13 first.
-- **Route and debris sections of the dashboard** are still to be wired into
-  `app.py`; both agents and their orchestrator entry points are ready.
+- **The illustrative boundary only makes sense in the Gulf of Mannar.** It is a
+  single fixed line, so scanning a distant area classifies everything as
+  `routine_gap` (see the 200 km guard). A real system would use actual EEZ
+  polygons — GFW's event records even carry a `regions` field we do not use yet.
+- **Chennai ↔ Kochi clips Pamban.** The Palk Bay → Off Rameswaram leg crosses
+  Rameswaram island around 9.3° N. Real vessels use the Pamban channel there, so
+  it is not absurd, but zoom in and the line touches land. One extra waypoint
+  east of the island would close it.
+- **Ports are listed in two places.** `PORT_PRESETS` in `app.py` and
+  `PORT_CORRIDOR_INDEX` in `utils/sea_route.py`. Add a port to one and forget the
+  other and it silently falls back to a straight line — which is the over-land
+  bug all over again. The guard prevents a crash, not a wrong route.
+- **A foreign vessel just outside the line reads as routine.** `foreign_intrusion`
+  depends on side, so a foreign boat 1.5 km away on *its* side is a `routine_gap`
+  while one 90 km inside our side is an intrusion. Correct by the rules, and
+  defensible, but a judge may ask.
+- **`is_new` keys on severity only.** A vessel that drifts from `routine_gap`
+  into `border_safety_alert` while staying `low` is not marked as new — arguably
+  the most important transition to catch.
+- **`utils/zone_utils.py` and `utils/sea_route.py` have no unit tests.** They are
+  exercised through `test_person_a.py` and by hand only.
 
 ---
 

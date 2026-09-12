@@ -109,12 +109,34 @@ for number, alert in enumerate(alerts, start=1):
     print(f"  Vessel ID : {alert['vessel_id']}")
     print(f"  Position  : {alert['lat']:.4f}, {alert['lon']:.4f}")
     print(f"  Severity  : {alert['severity'].upper()}")
+    print(f"  Category  : {alert['category']}  "
+          f"({alert['distance_to_border_km']} km from boundary)")
+    print(f"  Flag      : {alert['flag'] or 'unknown'}")
     print(f"  Reason    : {alert['flagged_reason']}")
     print()
 
 # Check the output shape is exactly what teammates will be importing.
-EXPECTED_KEYS = {"vessel_id", "lat", "lon", "flagged_reason", "severity"}
+# "category" and "distance_to_border_km" came with the boundary-aware
+# classification layer; "vessel_name" and "flag" let the dashboard show a
+# readable name instead of a hex id. All four are part of the contract now.
+EXPECTED_KEYS = {
+    "vessel_id",
+    "vessel_name",
+    "flag",
+    "lat",
+    "lon",
+    "flagged_reason",
+    "severity",
+    "category",
+    "distance_to_border_km",
+}
 shape_is_correct = all(set(alert.keys()) == EXPECTED_KEYS for alert in alerts)
+
+if not shape_is_correct and alerts:
+    # Say exactly what is off, instead of just "FAIL".
+    actual_keys = set(alerts[0].keys())
+    print(f"  unexpected extra keys: {sorted(actual_keys - EXPECTED_KEYS)}")
+    print(f"  missing keys:          {sorted(EXPECTED_KEYS - actual_keys)}")
 
 print("RESULT: PASS - output shape is correct."
       if shape_is_correct else
@@ -137,12 +159,20 @@ Shapes you can rely on:
   Both take:
       {"min_lat": float, "max_lat": float, "min_lon": float, "max_lon": float}
   ...and return a list of:
-      {"vessel_id": str, "lat": float, "lon": float, "last_position_time": str}
+      {"vessel_id": str, "vessel_name": str|None, "flag": str|None,
+       "lat": float, "lon": float, "last_position_time": str}
 
   find_dark_vessels(vessel_list) takes that same list,
   ...and returns a list of:
-      {"vessel_id": str, "lat": float, "lon": float,
-       "flagged_reason": str, "severity": "low" | "medium" | "high"}
+      {"vessel_id": str, "vessel_name": str|None, "flag": str|None,
+       "lat": float, "lon": float,
+       "flagged_reason": str, "severity": "low" | "medium" | "high",
+       "category": "foreign_intrusion" | "border_safety_alert"
+                 | "unidentified_near_zone" | "routine_gap",
+       "distance_to_border_km": float}
+
+  Vessels classified "routine_gap" are capped at "low" severity and never
+  cost an AI call, however long they have been silent.
 
   The orchestrator's check_dark_vessels(area, use_demo_data) wraps all of the
   above and returns:
