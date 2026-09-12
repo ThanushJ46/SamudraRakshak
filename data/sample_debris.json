@@ -1,59 +1,65 @@
 {
-  "_note": "DEMO DATASET -- Sample marine debris sightings for Maritime Guardian cleanup planner. Realistic coastal coordinates off Bay of Bengal / Coromandel Coast.",
+  "_note": "SAMPLE DATA - made-up debris sightings for the demo, this file stays as-is",
   "debris_sightings": [
     {
-      "debris_id": "deb-001",
-      "lat": 13.0827,
-      "lon": 80.3200,
-      "description": "large plastic sheet cluster floating near harbor approach"
+      "debris_id": "D1",
+      "lat": 9.32,
+      "lon": 79.35,
+      "description": "Cluster of plastic bottles"
     },
     {
-      "debris_id": "deb-002",
-      "lat": 13.1205,
-      "lon": 80.3540,
-      "description": "abandoned nylon fishing net tangle (ghost net)"
+      "debris_id": "D2",
+      "lat": 9.48,
+      "lon": 79.52,
+      "description": "Tangled fishing net"
     },
     {
-      "debris_id": "deb-003",
-      "lat": 13.1550,
-      "lon": 80.3800,
-      "description": "floating industrial chemical drum container"
+      "debris_id": "D3",
+      "lat": 9.61,
+      "lon": 79.68,
+      "description": "Floating debris patch"
     },
     {
-      "debris_id": "deb-004",
-      "lat": 13.0450,
-      "lon": 80.2950,
-      "description": "discarded styrofoam fish crates and plastic bottles"
+      "debris_id": "D4",
+      "lat": 9.75,
+      "lon": 79.85,
+      "description": "Discarded packaging waste"
     },
     {
-      "debris_id": "deb-005",
-      "lat": 13.2100,
-      "lon": 80.4100,
-      "description": "submerged synthetic rope and trawl gear cluster"
+      "debris_id": "D5",
+      "lat": 9.90,
+      "lon": 80.02,
+      "description": "Small oil sheen with debris"
     },
     {
-      "debris_id": "deb-006",
-      "lat": 12.9800,
-      "lon": 80.2800,
-      "description": "dense microplastic and consumer packaging debris patch"
+      "debris_id": "D6",
+      "lat": 9.40,
+      "lon": 79.60,
+      "description": "Broken fishing crates"
     },
     {
-      "debris_id": "deb-007",
-      "lat": 13.1750,
-      "lon": 80.3950,
-      "description": "broken wooden pallet with entangled plastic ropes"
+      "debris_id": "D7",
+      "lat": 9.55,
+      "lon": 79.75,
+      "description": "Plastic sheeting tangle"
     },
     {
-      "debris_id": "deb-008",
-      "lat": 13.0100,
-      "lon": 80.2850,
-      "description": "oil-tainted plastic jerry cans floating near shipping channel"
+      "debris_id": "D8",
+      "lat": 9.68,
+      "lon": 79.90,
+      "description": "Styrofoam fragments"
     },
     {
-      "debris_id": "deb-009",
-      "lat": 13.2450,
-      "lon": 80.4350,
-      "description": "tangled monofilament gillnet hazard to marine turtles"
+      "debris_id": "D9",
+      "lat": 9.82,
+      "lon": 80.05,
+      "description": "Abandoned buoy and rope"
+    },
+    {
+      "debris_id": "D10",
+      "lat": 9.95,
+      "lon": 80.15,
+      "description": "Mixed litter patch near shore"
     }
   ]
 }
