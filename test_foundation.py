@@ -1,11 +1,12 @@
 """
-test_person_a.py
+test_foundation.py
 ----------------
-A quick visual check that Person A's foundation layer works.
+A quick visual check that the foundation layer works:
+the AI client, the vessel feed, and the dark-vessel agent.
 
 Run it from the project root:
 
-    python test_person_a.py
+    python test_foundation.py
 
 It does NOT need any API keys to pass. Without keys, the live Global Fishing
 Watch call fails (which is now correct behaviour - it raises instead of hiding
@@ -150,7 +151,7 @@ print("RESULT: PASS - output shape is correct."
 
 
 # ---------------------------------------------------------------------------
-print_heading("SUMMARY FOR TEAMMATES")
+print_heading("THE CONTRACT OTHER MODULES DEPEND ON")
 print("""
 Import these functions like this:
 

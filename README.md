@@ -49,7 +49,7 @@ GFW_API_TOKEN=     # free from https://globalfishingwatch.org/our-apis/
 **3. Check the foundation layer works**
 
 ```bash
-python test_person_a.py
+python test_foundation.py
 ```
 
 This passes **without** any keys. With no keys it falls back to sample vessels
@@ -480,8 +480,8 @@ SamudraRakshak/
 │   └── sample_debris.json      Sample debris sightings
 ├── .streamlit/
 │   └── config.toml             Pinned dark theme
-├── test_person_a.py            Foundation layer checks
-├── test_person_b.py            Route + debris agent checks
+├── test_foundation.py          AI client, vessel feed, dark-vessel agent
+├── test_route_and_debris.py    Route + debris agent checks
 ├── requirements.txt
 └── .env.example
 ```
@@ -556,7 +556,7 @@ Things we would fix with more time, stated plainly rather than hidden:
   long interception can cross land. The legs are usually short and offshore,
   but it is the same limitation the port routing already solves.
 - **`utils/zone_utils.py` and `utils/sea_route.py` have no unit tests.** They are
-  exercised through `test_person_a.py` and by hand only.
+  exercised through `test_foundation.py` and by hand only.
 
 ---
 
@@ -619,6 +619,6 @@ honesty caveat in the process.
 
 | | Component |
 |---|---|
-| **Thanush J** | Foundation layer — Groq client, GFW client, Dark-Vessel Agent, `test_person_a.py` |
-| **Vishesh Poojary** | Route Optimization Agent, Debris Cleanup Agent, Streamlit dashboard, `test_person_b.py` |
+| **Thanush J** | Foundation layer — Groq client, GFW client, Dark-Vessel Agent, `test_foundation.py` |
+| **Vishesh Poojary** | Route Optimization Agent, Debris Cleanup Agent, Streamlit dashboard, `test_route_and_debris.py` |
 | **Rakshan** | Orchestrator, sample debris data |

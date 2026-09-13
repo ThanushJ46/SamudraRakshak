@@ -1,10 +1,10 @@
 """
-Verification script for Person B's deliverables in Maritime Guardian:
+Verification script for the route and debris agents:
 1. data/sample_debris.json      -> Sample debris sightings dataset
 2. agents/route_agent.py        -> optimize_route()
 3. agents/debris_agent.py       -> plan_cleanup_route()
 
-Run with: python test_person_b.py
+Run with: python test_route_and_debris.py
 """
 
 import json
@@ -167,7 +167,7 @@ def test_cleanup_single_item():
 
 def run_tests():
     print("=" * 65)
-    print("  MARITIME GUARDIAN -- PERSON B VERIFICATION TEST SUITE")
+    print("  ROUTE + DEBRIS AGENT VERIFICATION SUITE")
     print("=" * 65)
 
     # Route optimization tests
@@ -183,7 +183,7 @@ def run_tests():
     test_cleanup_single_item()
 
     print("\n" + "=" * 65)
-    print("  ALL PERSON B TESTS PASSED (6/6)")
+    print("  ALL ROUTE + DEBRIS TESTS PASSED (6/6)")
     print("=" * 65)
 
 
