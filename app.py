@@ -479,12 +479,15 @@ with tab_dark:
             weight=3,
             opacity=0.9,
             dash_array="10, 8",
-            tooltip="Illustrative maritime boundary (approximate)",
+            tooltip="Demo monitoring line - NOT the actual maritime boundary",
             popup=folium.Popup(
-                "<b>Illustrative maritime boundary (approximate)</b><br>"
-                "For demo visualisation only. These are NOT surveyed or legal "
-                "boundary coordinates.",
-                max_width=300,
+                "<b>Demonstration monitoring line</b><br>"
+                "Approximate, drawn for this demo. It is <b>not</b> the actual "
+                "India-Sri Lanka maritime boundary, and it will not line up "
+                "with the boundary the basemap draws underneath it.<br><br>"
+                "Replacing this with real EEZ data from Global Fishing Watch "
+                "is the first item on our roadmap.",
+                max_width=320,
             ),
         ).add_to(target_map)
 
@@ -554,9 +557,10 @@ with tab_dark:
             "🚩 red = foreign flag inside our waters · ⚠️ amber ring = one "
             "of ours near the line · ❓ purple = no flag. The label beside "
             "each marker is the vessel's flag state. "
-            "The dashed red line is an **approximate, illustrative** maritime "
-            "boundary for demo visualisation only - not surveyed or legal "
-            "coordinates."
+            "The dashed red line is our **demonstration monitoring line** - "
+            "approximate, and deliberately not the same as the real maritime "
+            "boundary the basemap draws. Replacing it with live EEZ data is "
+            "the first item on our roadmap."
         )
 
         st.markdown("### Alerts by Category")
