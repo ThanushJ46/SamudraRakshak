@@ -29,7 +29,9 @@ APPROXIMATE BOUNDARY - demonstration only. Not for navigation.
 
 import json
 
-from utils.gfw_client import ILLUSTRATIVE_BOUNDARY_LINE
+# Deliberately from zone_utils, NOT gfw_client: the fisherman's app must
+# not import the surveillance client or anything that reads the API token.
+from utils.zone_utils import ILLUSTRATIVE_BOUNDARY_LINE
 
 # How close is too close, in km. These match the shore-side thresholds in
 # utils/zone_utils.py so the fisherman and the coast guard are working to the

@@ -37,17 +37,11 @@ load_dotenv()
 # a vessel id, a lat/lon, and a timestamp.)
 GFW_EVENTS_URL = "https://gateway.api.globalfishingwatch.org/v3/events"
 
-# ---------------------------------------------------------------------------
-# APPROXIMATE, for demo visualization only - not surveyed/legal maritime
-# boundary coordinates. Do NOT use this for navigation or for any real
-# enforcement decision. It exists so the dashboard has a plausible "sensitive
-# line" to measure vessels against during the demo, and runs through the Gulf
-# of Mannar area we scan by default.
-# ---------------------------------------------------------------------------
-ILLUSTRATIVE_BOUNDARY_LINE = [
-    {"lat": 9.0, "lon": 79.6},
-    {"lat": 10.5, "lon": 80.0},
-]
+# The illustrative boundary now lives in utils/zone_utils.py, so the
+# fisherman's app can read it without importing this module (and this module's
+# API token) at all. Re-exported here because the agents already import it
+# from gfw_client.
+from utils.zone_utils import ILLUSTRATIVE_BOUNDARY_LINE  # noqa: F401
 
 
 # How far back to look for activity, and how many vessels to ask for.

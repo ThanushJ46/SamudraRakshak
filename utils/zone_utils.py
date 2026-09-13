@@ -20,6 +20,23 @@ silent boat as equally suspicious.
 
 import math
 
+# ---------------------------------------------------------------------------
+# APPROXIMATE, for demo visualization only - not surveyed/legal maritime
+# boundary coordinates. Do NOT use for navigation or for any real enforcement
+# decision. It exists so the dashboard has a plausible "sensitive line" to
+# measure vessels against during the demo, and runs through the Gulf of Mannar
+# area we scan by default.
+#
+# It lives HERE, in the geometry module, rather than in gfw_client, because the
+# fisherman's app needs the boundary but must never pull in the surveillance
+# client (and with it the GFW API token) just to read a constant.
+# ---------------------------------------------------------------------------
+ILLUSTRATIVE_BOUNDARY_LINE = [
+    {"lat": 9.0, "lon": 79.6},
+    {"lat": 10.5, "lon": 80.0},
+]
+
+
 # Roughly how many kilometres one degree of latitude covers. Latitude lines are
 # evenly spaced, so this is a constant.
 KM_PER_DEGREE_LATITUDE = 110.57

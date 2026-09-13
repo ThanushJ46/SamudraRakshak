@@ -236,6 +236,40 @@ keeps working.
 
 ---
 
+## Two apps, on purpose
+
+`app.py` is the coast guard's. `fisherman_app.py` is the crew's. They are
+separate applications, not two tabs, and that is a security decision rather
+than a styling one.
+
+A fishing crew must **never** see the surveillance picture — which vessels are
+flagged, where the patrol boats are, or when one is on its way. An app that
+showed them would be a tool for evading enforcement rather than one for
+keeping fishermen safe.
+
+The separation is enforced by the import graph, not by a promise. Importing
+the fisherman app's dependency chain loads exactly two modules:
+
+```
+utils.fisherman_page, utils.zone_utils
+```
+
+No `gfw_client`, no `llm_client`, no `triage`, no `orchestrator` — and the GFW
+API token is never read into the environment. `ILLUSTRATIVE_BOUNDARY_LINE`
+lives in `utils/zone_utils.py` (pure geometry, no network, no secrets) exactly
+so the fisherman's app can read the boundary without pulling in the
+surveillance client to get it.
+
+The downloadable geofence file inherits the same property: it contains the
+boundary and two distance thresholds, and nothing else.
+
+```bash
+python -m streamlit run app.py                                  # coast guard
+python -m streamlit run fisherman_app.py --server.port 8502     # fisherman
+```
+
+---
+
 ## Function contracts
 
 Everything below is stable — the dashboard and orchestrator depend on these
@@ -420,7 +454,8 @@ which blanked the map on a second scan and looked broken.
 
 ```
 SamudraRakshak/
-├── app.py                      Streamlit dashboard
+├── app.py                      Coast guard dashboard
+├── fisherman_app.py            Fisherman's app - SEPARATE on purpose
 ├── agents/
 │   ├── dark_vessel_agent.py    Agent 1 - AIS silence detection
 │   ├── route_agent.py          Agent 2 - fuel-efficient routing

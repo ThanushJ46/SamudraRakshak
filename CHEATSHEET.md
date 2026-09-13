@@ -40,6 +40,7 @@ Then press **Scan for dark vessels**.
    reasoning so the officer can disagree."*
 5. **Route Optimizer** → Rameswaram → Kochi, round Kanyakumari
 6. **Debris Cleanup** → one button, 10 stops, 554.8 L
+7. **Switch to the fisherman window** → drag 14 km to 0, green → amber → red
 
 ---
 
@@ -66,6 +67,11 @@ Then press **Scan for dark vessels**.
 > Public GFW is daily-batch, not live AIS, so minute-level severity can't be
 > exercised on it. Live proves the integration — real vessels, names, flags.
 > Demo proves the logic. The badge always says which one actually ran.
+
+**"Why is the fisherman's app separate?"**
+> Because he must never see the surveillance picture — which boats are
+> flagged, where the patrol is, when it's coming. That app imports only the
+> geometry module; it cannot reach the vessel feed or the API token at all.
 
 **"Who receives the Tamil warning?"**
 > Nobody yet — it's drafted, not delivered. Delivery is a phone app with an

@@ -30,11 +30,6 @@ from agents.orchestrator import (
 )
 from utils.gfw_client import ILLUSTRATIVE_BOUNDARY_LINE
 from utils.sea_route import plan_sea_route
-from utils.fisherman_page import (
-    CAUTION_DISTANCE_KM,
-    DANGER_DISTANCE_KM,
-    build_offline_alert_page,
-)
 # The route agent's own fuel figure, reused so the cleanup cost is quoted
 # on exactly the same basis as a route - not a second invented number.
 from agents.route_agent import FUEL_RATE_LITERS_PER_KM
@@ -138,6 +133,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+# Where the fisherman's app is served. It runs as its OWN Streamlit process -
+# see fisherman_app.py - so change this if you start it on a different port.
+FISHERMAN_APP_URL = "http://localhost:8502"
+
+# A LINK, deliberately not a view toggle. A toggle would mean one process
+# rendering both screens, which would put the vessel feed and the API token in
+# the same process as the fisherman's app. The whole point is that it cannot
+# reach them.
+st.link_button(
+    "📱 Open the fisherman's app",
+    FISHERMAN_APP_URL,
+    help="Opens the separate fisherman application in a new tab "
+         "(streamlit run fisherman_app.py --server.port 8502)",
+)
 
 # ===========================================================================
 # DARK VESSEL MONITOR
@@ -781,254 +791,20 @@ if route_result:
 # ===========================================================================
 # DEBRIS CLEANUP
 # ===========================================================================
-st.markdown("---")
-st.markdown(
-    '<div class="sr-section-title"><div class="bar"></div>'
-    '<h2 style="margin:0;font-size:1.35rem;">🗑️ Debris Cleanup Planner</h2></div>',
-    unsafe_allow_html=True,
-)
-st.write(
-    "Plans the shortest collection round for a cleanup boat, visiting every "
-    "reported debris sighting."
-)
-
-# The cleanup boat always sets out from the same harbour, so there is nothing
-# for the user to fill in - one button is the whole interface.
-CLEANUP_START = {"lat": 9.2876, "lon": 79.3129}   # Rameswaram harbour
-
-cleanup_controls, cleanup_results = st.columns([1, 2])
-
-with cleanup_controls:
-    st.caption(
-        f"Departing Rameswaram harbour "
-        f"({CLEANUP_START['lat']:.4f}, {CLEANUP_START['lon']:.4f})"
-    )
-    cleanup_was_clicked = st.button("Plan cleanup route", type="primary")
-
-if cleanup_was_clicked:
-    with st.spinner("Planning collection order..."):
-        st.session_state["cleanup_result"] = get_cleanup_plan(CLEANUP_START)
-
-cleanup_result = st.session_state.get("cleanup_result")
-
-with cleanup_results:
-    if cleanup_result is None:
-        st.info("Press **Plan cleanup route** to build a collection round.")
-    else:
-        visit_order = cleanup_result["visit_order"]
-
-        stops_card, distance_card = st.columns(2)
-        with stops_card:
-            st.markdown(
-                f"""<div class="stat-card">
-                    <div class="stat-label">Debris Stops</div>
-                    <div class="stat-value">{len(visit_order)}</div>
-                </div>""",
-                unsafe_allow_html=True,
-            )
-        with distance_card:
-            st.markdown(
-                f"""<div class="stat-card accent">
-                    <div class="stat-label">Total Distance</div>
-                    <div class="stat-value">{cleanup_result['total_distance_km']} km</div>
-                </div>""",
-                unsafe_allow_html=True,
-            )
-
-        # What the round actually costs to sail, using the route agent's fuel
-        # model - so a planner can weigh the cleanup against its fuel burn.
-        cleanup_fuel_liters = round(
-            cleanup_result["total_distance_km"] * FUEL_RATE_LITERS_PER_KM, 1
-        )
-        st.markdown(
-            f"Estimated fuel for this round: **{cleanup_fuel_liters} L** "
-            f"({FUEL_RATE_LITERS_PER_KM} L/km)"
-        )
-
-        if visit_order:
-            st.markdown("**Collection order**")
-            st.markdown("Harbour → " + " → ".join(visit_order))
-        else:
-            st.success("No debris sightings to collect.")
-
-if cleanup_result and cleanup_result["visit_order"]:
-    cleanup_waypoints = cleanup_result["waypoints"]
-
-    cleanup_lats = [w["lat"] for w in cleanup_waypoints]
-    cleanup_lons = [w["lon"] for w in cleanup_waypoints]
-
-    cleanup_map = folium.Map(
-        location=[sum(cleanup_lats) / len(cleanup_lats),
-                  sum(cleanup_lons) / len(cleanup_lons)],
-        zoom_start=9,
-    )
-
-    # The round trip, in the order the boat will sail it.
-    folium.PolyLine(
-        locations=[[w["lat"], w["lon"]] for w in cleanup_waypoints],
-        color="#059669",
-        weight=4,
-        opacity=0.9,
-        tooltip="Cleanup route",
-    ).add_to(cleanup_map)
-
-    # The harbour it leaves from.
-    folium.Marker(
-        location=[cleanup_waypoints[0]["lat"], cleanup_waypoints[0]["lon"]],
-        tooltip="Rameswaram harbour (start)",
-        icon=folium.Icon(color="blue", icon="home"),
-    ).add_to(cleanup_map)
-
-    # Numbered stops. waypoints[0] is the harbour, so waypoints[1:] lines up
-    # one-for-one with visit_order.
-    for stop_number, (debris_id, waypoint) in enumerate(
-        zip(cleanup_result["visit_order"], cleanup_waypoints[1:]), start=1
-    ):
-        folium.Marker(
-            location=[waypoint["lat"], waypoint["lon"]],
-            tooltip=f"Stop {stop_number}: {debris_id}",
-            popup=folium.Popup(
-                f"<b>Stop {stop_number}</b><br>{debris_id}", max_width=200
-            ),
-            icon=folium.DivIcon(
-                html=(
-                    f"<div style='background:#059669;color:white;width:24px;"
-                    f"height:24px;border-radius:50%;text-align:center;"
-                    f"line-height:24px;font-weight:700;font-size:12px;"
-                    f"border:2px solid white;'>{stop_number}</div>"
-                ),
-                icon_size=(24, 24),
-                icon_anchor=(12, 12),
-            ),
-        ).add_to(cleanup_map)
-
-    st_folium(cleanup_map, height=420, use_container_width=True)
-    st.caption(
-        "Numbers show the order the boat collects each sighting, planned with "
-        "a nearest-neighbour route."
-    )
 
 
 # ===========================================================================
-# FISHERMAN ALERT - the delivery end of the system
+# The FISHERMAN's app is deliberately NOT part of this dashboard.
 #
-# Everything above this point is the authority's view. This is the fisherman's.
+# He must never see the surveillance picture - which vessels are flagged,
+# where patrol boats are, or when one is coming. A separate app, on his own
+# device, carrying only the boundary:
 #
-# It matters because of the awkward truth in the rest of this project: the boat
-# we most want to warn is the one that has gone dark, and a dark boat is the
-# one a shore station can least reach. GPS only RECEIVES - it needs no signal -
-# so a warning that lives ON the boat keeps working when AIS does not.
+#     python -m streamlit run fisherman_app.py --server.port 8502
 # ===========================================================================
 st.markdown("---")
-st.markdown(
-    '<div class="sr-section-title"><div class="bar"></div>'
-    '<h2 style="margin:0;font-size:1.35rem;">📱 Fisherman Alert</h2></div>',
-    unsafe_allow_html=True,
+st.caption(
+    "🔒 The fisherman's alert is a **separate app** on his own device — it "
+    "carries only the boundary, never the surveillance picture. This opens it "
+    "in a new tab; it is a different application, not a tab of this one."
 )
-st.write(
-    "What the crew sees on their own phone. The geofence runs on GPS alone - "
-    "no network and no AIS - which matters because the boat we most need to "
-    "warn is the one that has gone dark."
-)
-
-fisherman_controls, fisherman_screen = st.columns([1, 1])
-
-with fisherman_controls:
-    st.caption(
-        "Drag to simulate the boat approaching the boundary, as it would be "
-        "read from GPS on board."
-    )
-    simulated_distance_km = st.slider(
-        "Distance from boundary (km)",
-        min_value=0.0,
-        max_value=30.0,
-        value=14.0,
-        step=0.5,
-    )
-
-    # Thresholds match the shore-side rules, so the fisherman and the coast
-    # guard are working to the same numbers.
-    if simulated_distance_km < DANGER_DISTANCE_KM:
-        alert_state = "danger"
-    elif simulated_distance_km < CAUTION_DISTANCE_KM:
-        alert_state = "caution"
-    else:
-        alert_state = "safe"
-
-    st.download_button(
-        "⬇️ Download the geofence file",
-        data=build_offline_alert_page(),
-        file_name="samudra_rakshak_alert.html",
-        mime="text/html",
-        help="One self-contained HTML file with the boundary baked in. No map "
-             "tiles, no CDN, no API calls - the geofence needs no network.",
-    )
-    st.caption(
-        "The boundary and the distance maths are baked in, so **no network is "
-        "needed to work out how close the boat is** - GPS only receives. "
-        "Shipping this for real means packaging it as an installable app "
-        "(a PWA): phone browsers only hand GPS to pages from a secure origin, "
-        "so opening this file straight off the filesystem will not get a fix. "
-        "The logic is what is finished here; the packaging is not."
-    )
-
-# How each state is drawn on the simulated phone screen.
-FISHERMAN_STATES = {
-    "safe": {
-        "background": "#14532d",
-        "tamil": "பாதுகாப்பாக உள்ளீர்கள்",
-        "english": "SAFE",
-        "message": "You are well clear of the boundary. Good fishing.",
-    },
-    "caution": {
-        "background": "#854d0e",
-        "tamil": "எச்சரிக்கை",
-        "english": "CAUTION",
-        "message": "Boundary is close. Stay alert and keep your AIS on.",
-    },
-    "danger": {
-        "background": "#7f1d1d",
-        "tamil": "எல்லைக்கு மிக அருகில்!",
-        "english": "TOO CLOSE - TURN BACK",
-        "message": "Turn back towards Indian waters now.",
-    },
-}
-
-with fisherman_screen:
-    style = FISHERMAN_STATES[alert_state]
-
-    # A phone-shaped panel, so it reads as the crew's device and not as
-    # another chart on the authority's dashboard.
-    st.markdown(
-        f"""
-        <div style="max-width:300px;margin:0 auto;border:10px solid #1e293b;
-                    border-radius:30px;overflow:hidden;
-                    box-shadow:0 6px 20px rgba(0,0,0,0.35);">
-          <div style="background:{style['background']};padding:26px 18px;
-                      text-align:center;color:#ffffff;">
-            <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;">
-              {style['tamil']}
-            </div>
-            <div style="font-size:1.4rem;font-weight:800;line-height:1.15;">
-              {style['english']}
-            </div>
-            <div style="font-size:2.9rem;font-weight:800;margin:12px 0 0 0;">
-              {simulated_distance_km:.1f}
-            </div>
-            <div style="font-size:0.72rem;opacity:0.85;">
-              km from boundary · எல்லையிலிருந்து கி.மீ.
-            </div>
-          </div>
-          <div style="background:#111c2e;padding:14px;color:#cbd5e1;
-                      font-size:0.82rem;line-height:1.45;">
-            {style['message']}
-          </div>
-          <div style="background:#1c1917;padding:9px 14px;color:#a8a29e;
-                      font-size:0.62rem;line-height:1.4;">
-            DEMO ONLY — approximate boundary, not surveyed coordinates.
-            Not for navigation.
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )

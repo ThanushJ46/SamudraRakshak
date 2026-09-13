@@ -112,12 +112,15 @@ python -m streamlit run app.py
 
 ## 2:20 – 2:40 · The fisherman's phone
 
-*Scroll to **📱 Fisherman Alert**. Drag the slider from 14 km down to 0.*
+*Switch to the second window — the fisherman's app. Drag the slider from
+14 km down to 0.*
 
-> And this is his end of it. The same boundary, on his own phone — green,
-> amber, red as he closes on the line.
+> And this is his end of it — a **separate app**, on his own phone.
 >
-> It runs on GPS alone. No network, no AIS. Which matters, because the boat we
+> It carries only the boundary. Never vessel positions, never where the patrol
+> boats are. A crew should be warned, not watched.
+>
+> It runs on GPS alone — no network, no AIS. Which matters, because the boat we
 > most need to warn is the one that's gone dark.
 
 *Let the red screen hold for 2 seconds. That is the closing image.*
