@@ -564,6 +564,61 @@ Things we would fix with more time, stated plainly rather than hidden:
 
 ---
 
+## Where this goes next
+
+Everything below is grounded in a limitation we actually hit, not a wish list.
+Each item names the specific thing in the code it would replace.
+
+### Phase 1 — make it true (days)
+
+The gap between "demo" and "pilot" is almost entirely these four.
+
+| # | What | Replaces | Why it matters |
+|---|---|---|---|
+| 1 | **Real maritime boundary data** | `ILLUSTRATIVE_BOUNDARY_LINE` in `utils/zone_utils.py` | The single biggest honesty gap. Every distance we display, and the number in the fisherman's warning, is measured from two coordinates we typed. GFW already returns `regions.eez`, `regions.eez12Nm` and `regions.mpaNoTake` on every event and we discard them. Swapping a hand-drawn line for real EEZ membership makes the classification work anywhere in the world, not just in one hand-placed corner of the Gulf of Mannar. |
+| 2 | **Marine Protected Area signal** | nothing — this is new | `regions.mpaNoTake` is already in the response we fetch. A vessel that goes dark *inside a no-take zone* is a far stronger illegal-fishing indicator than proximity to a line. This is the highest-value feature per line of code in the whole backlog. |
+| 3 | **Deliver the warning** | the `warning_message` string that currently only renders | Today the system decides *who* needs warning and drafts *what to say*. Nobody receives it. Two real channels exist: SMS to registered boats (works to ~20 km offshore) and NavIC-based satellite messaging, which India already uses for fishermen advisories and reaches beyond cellular range. |
+| 4 | **Package the fisherman app as a PWA** | `utils/fisherman_page.py`'s downloadable HTML | The geofence logic is finished and needs no network. But phone browsers only grant GPS to a secure origin, so the file does not get a fix when opened off the filesystem. An installable PWA is cached, served from a secure origin, and works offline properly. |
+
+### Phase 2 — make it usable (weeks)
+
+| # | What | Replaces |
+|---|---|---|
+| 5 | **Live AIS instead of daily-batch** | `utils/gfw_client.py`'s events endpoint | Our severity bands are in minutes; the public GFW feed is days old, so the bands can never be exercised on real data. A live AIS source (paid GFW tier, or an AIS aggregator) makes the whole severity model meaningful rather than illustrative. |
+| 6 | **Land-aware routing** | the hand-picked corridor in `utils/sea_route.py` | Seven eyeballed waypoints keep routes at sea for six port pairs. A real coastline polygon plus A* over a sea grid would generalise to any two points, and would fix the Pamban clip and the straight-line interception routes. |
+| 7 | **Better cleanup routing** | greedy nearest-neighbour in `agents/debris_agent.py` | Add the return leg to harbour, then 2-opt the result. Nearest-neighbour typically lands 15-25% above optimal; 2-opt closes most of that for very little code. |
+| 8 | **Multi-vessel dispatch** | `plan_interception()`, which assumes one boat | With several patrol craft this becomes an assignment problem, and the AI triage step becomes genuinely harder and more valuable - which boat to which target, given fuel and position. |
+| 9 | **Real persistence** | `data/flagged_history.json` | A JSON file is fine for one operator on one machine. A database gives multi-user access, an audit trail of who acted on what, and vessel history over months rather than a session. |
+
+### Phase 3 — make it a system (months)
+
+| # | What |
+|---|---|
+| 10 | **Officer accounts and an audit log.** Enforcement decisions need to be attributable. Who saw the alert, who dispatched, what happened. |
+| 11 | **Pattern detection over history.** A vessel that goes dark in the same place every week is a different problem from one that did it once. This is where stored history stops being a "NEW" badge and starts being evidence. |
+| 12 | **Richer weather routing.** Wind is one input; wave height and current matter as much for fuel. Open-Meteo Marine exposes both. |
+| 13 | **Tamil text-to-speech.** The warning is already drafted in Tamil. Generating audio would let a station broadcast it over VHF directly. |
+| 14 | **SOS from the fisherman app.** The boat already has the app open and knows its position. A one-tap distress signal is a small addition with disproportionate value. |
+
+### Explicitly not doing
+
+- **An agent framework.** Three plain functions are easier to debug, faster to
+  run, and easier to explain than CrewAI or LangGraph would be here. If the
+  workflow ever needs genuine branching or retries, revisit - not before.
+- **Replacing the rules with an LLM.** Severity and category stay deterministic
+  on purpose. An enforcement action has to be reproducible and auditable, and
+  "the model decided" is not a defensible answer to a detained crew.
+
+### If we only had one more day
+
+Items **1 and 2** - real EEZ boundaries and the no-take-zone signal. Both use
+data we already fetch and throw away. Together they turn the classification
+layer from something that works on placed demo data into something that works
+on live data anywhere in the world, and they remove the project's largest
+honesty caveat in the process.
+
+---
+
 ## Team
 
 | | Component |
