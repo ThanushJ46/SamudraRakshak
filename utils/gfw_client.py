@@ -221,21 +221,34 @@ SAMPLE_VESSEL_IDS = [
 SAMPLE_MINUTES_AGO = [4, 12, 21, 47, 68, 105, 168, 295, 640, 26]
 
 
-# Four of the ten sample vessels are pinned to deliberate positions relative
-# to ILLUSTRATIVE_BOUNDARY_LINE, so that a demo scan always produces all four
-# classification categories instead of relying on random luck.
+# ALL TEN sample vessels sit at fixed, hand-checked positions.
 #
-# Each entry is: vessel_id -> (km from the boundary, which side, how far along)
+# They used to be scattered with random.uniform inside the requested bounding
+# box - but that box contains the Indian coast, Rameswaram island and the
+# Jaffna peninsula, so the demo regularly drew fishing boats sitting on dry
+# land. Every position below was checked against the coastline: they are in
+# Palk Bay or the Gulf of Mannar, both open water.
 #
-# Only IND-TN-1355 is both Indian-flagged AND silent for long enough to reach
-# the agent (168 minutes) - the other IND- boats report every few minutes, so
-# they never get flagged. That makes it the only vessel that can produce a
-# "border_safety_alert", which is why it is pinned close to the line.
+# Fixed positions also make the demo repeatable, which matters when you are
+# recording it.
+#
+# Each entry is: vessel_id -> (latitude, longitude)
 PINNED_SAMPLE_POSITIONS = {
-    "IND-TN-1355":    (6.0,  "india_side", 0.50),   # -> border_safety_alert
-    "FOR-LKA-4471":   (35.0, "india_side", 0.60),   # -> foreign_intrusion
-    "UNK-GHOST-6603": (9.0,  "other_side", 0.40),   # -> unidentified_near_zone
-    "UNK-GHOST-8840": (55.0, "other_side", 0.35),   # -> routine_gap
+    # Palk Bay - the water between India and the Jaffna peninsula.
+    "IND-TN-1042":    (9.85, 79.55),
+    "IND-TN-1197":    (10.05, 79.60),
+    "IND-AP-2310":    (9.62, 79.45),
+    "FOR-LKA-4471":   (9.75, 79.50),    # foreign, our side -> intrusion
+    "UNK-GHOST-6603": (9.95, 79.80),    # no flag, 6 km off the line
+    "IND-TN-1355":    (9.70, 79.72),    # ours, 7 km off -> safety alert
+    "FOR-THA-7719":   (10.10, 79.55),   # foreign, our side -> intrusion
+    "IND-KL-3062":    (9.90, 79.40),
+
+    # Palk Strait, north of Sri Lanka - clear of the Jaffna peninsula.
+    "FOR-IDN-5528":   (10.20, 80.15),
+
+    # Gulf of Mannar, south-west of Rameswaram island.
+    "UNK-GHOST-8840": (9.10, 79.15),
 }
 
 
@@ -348,11 +361,11 @@ def generate_sample_vessels(area: dict) -> list[dict]:
     user picks "Demo Sample Data" in the dashboard, and also as its fallback
     when the live GFW call fails.
 
-    Four of the ten are placed at deliberate distances from
-    ILLUSTRATIVE_BOUNDARY_LINE (see PINNED_SAMPLE_POSITIONS) so every
-    classification category shows up in a demo. The other six are scattered
-    randomly. If the boundary is nowhere near the requested area, all ten are
-    scattered randomly instead.
+    All ten sit at fixed positions in open water (see
+    PINNED_SAMPLE_POSITIONS), chosen so every classification category appears
+    and no boat is ever drawn on land. If the requested area is nowhere near
+    our demo boundary - scanning the North Sea, say - the positions are
+    meaningless there, so we scatter randomly inside that box instead.
     """
 
     now = datetime.now(timezone.utc)
@@ -365,12 +378,8 @@ def generate_sample_vessels(area: dict) -> list[dict]:
         pinned = PINNED_SAMPLE_POSITIONS.get(vessel_id)
 
         if use_pinned_positions and pinned is not None:
-            # This vessel has a job to do in the demo - put it exactly where
-            # it needs to be relative to the boundary.
-            km_from_line, side, along_fraction = pinned
-            position = _point_offset_from_boundary(km_from_line, side, along_fraction)
-            lat = position["lat"]
-            lon = position["lon"]
+            # A fixed, hand-checked position in open water.
+            lat, lon = pinned
         else:
             # Pick a random spot inside the requested box.
             lat = round(random.uniform(area["min_lat"], area["max_lat"]), 5)
