@@ -27,6 +27,83 @@ far easier to debug under time pressure, and much easier to explain.
 
 ---
 
+## Tech stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Language | **Python 3.10+** (tested on 3.13) | Everything is plain functions - no metaclasses, no magic |
+| Dashboard | **Streamlit** | Two apps, zero frontend build step |
+| Maps | **Folium** + `streamlit-folium` | OpenStreetMap tiles, no API key, no watermark |
+| AI | **Groq** running `openai/gpt-oss-120b` | Fast enough that a scan does not stall on inference |
+| Vessel data | **Global Fishing Watch API v3** | Public AIS-gap and fishing-event data |
+| Weather | **Open-Meteo** | Free live wind, no key |
+| Config | `python-dotenv` | Keys in `.env`, never committed |
+| Memory | A JSON file | Honest about what it is - a database is roadmap item 9 |
+| Agent framework | **None, deliberately** | Three plain functions are faster to debug and easier to explain than CrewAI or LangGraph |
+
+Three external services, each with explicit failure handling: a GFW failure is
+reported rather than hidden, a Groq failure falls back and says so, an
+Open-Meteo failure means no weather saving is claimed.
+
+---
+
+## How it works, end to end
+
+```
+            ┌─────────────────────┐        ┌──────────────────┐
+            │ Global Fishing Watch│        │   Demo vessels   │
+            │   (live AIS gaps)   │        │ (fixed positions)│
+            └──────────┬──────────┘        └────────┬─────────┘
+                       │      user picks which one  │
+                       └────────────┬───────────────┘
+                                    v
+                        ┌───────────────────────┐
+                        │  DARK-VESSEL AGENT    │
+                        │  silent > 30 min?     │
+                        └───────────┬───────────┘
+                                    v
+                        ┌───────────────────────┐
+                        │  CLASSIFY  (rules)    │  flag state + distance
+                        │  foreign_intrusion    │  -> deterministic,
+                        │  border_safety_alert  │     auditable
+                        │  unidentified_near    │
+                        │  routine_gap (capped) │
+                        └───────────┬───────────┘
+                                    v
+                  ┌─────────────────┴──────────────────┐
+                  v                                    v
+     ┌────────────────────────┐          ┌──────────────────────────┐
+     │  ROUTE AGENT           │          │  AI: Tamil + English     │
+     │  interception from     │          │  warning for OUR boats   │
+     │  nearest patrol base   │          └────────────┬─────────────┘
+     └────────────┬───────────┘                       │
+                  │                                   │
+                  v                                   │
+     ┌────────────────────────┐                       │
+     │  AI TRIAGE             │  one patrol boat,     │
+     │  ranked dispatch order │  competing priorities │
+     │  + reasoning shown     │                       │
+     └────────────┬───────────┘                       │
+                  v                                   v
+        ┌───────────────────┐              ┌─────────────────────┐
+        │  app.py           │              │  fisherman_app.py   │
+        │  COAST GUARD      │   separate   │  THE CREW           │
+        │  full picture     │   processes  │  boundary only      │
+        └───────────────────┘              └─────────────────────┘
+                  ^
+                  │  memory: severity, category, times_flagged
+        ┌─────────┴──────────────┐
+        │ data/flagged_history   │  changes how a vessel is presented,
+        │        .json           │  never whether it appears
+        └────────────────────────┘
+```
+
+**Two more agents** run independently of that flow, driven by the dashboard:
+the **Route Optimizer** (port to port, offshore corridor, wind-aware fuel) and
+the **Debris Cleanup planner** (nearest-neighbour pickup sequencing).
+
+---
+
 ## Quick start
 
 **1. Install** (Python 3.10+; tested on 3.13)
