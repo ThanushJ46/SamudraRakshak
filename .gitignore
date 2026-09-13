@@ -22,7 +22,4 @@ ENV/
 data/flagged_history.json
 
 # Internal prep notes - kept locally, not part of the submission
-CHEATSHEET.md
-DEFENCE.md
-UI_PROMPT.md
-VIDEO_SCRIPT.md
+DEMO.md
