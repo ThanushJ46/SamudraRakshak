@@ -439,7 +439,37 @@ with tab_dark:
                 f"{vessel['flagged_reason']}",
                 max_width=320,
             ),
-            tooltip=f"{style['emoji']} {vessel_display_name(vessel)} ({distance_km} km)",
+            tooltip=f"{style['emoji']} {vessel_display_name(vessel)} · "
+                    f"{vessel.get('flag') or 'no flag'} · {distance_km} km",
+        ).add_to(target_map)
+
+        # The flag state, printed ON the map next to the dot.
+        #
+        # Without this the map only shows WHERE a vessel is, so a red marker
+        # sitting in Indian waters reads as "an Indian boat marked as a
+        # threat". It is the opposite: it is red BECAUSE it is foreign and it
+        # is in our waters. Nobody hovers a tooltip during a three-minute
+        # video, so the flag has to be visible without interaction.
+        flag_code = vessel.get("flag") or "?"
+
+        if category == "routine_gap":
+            # Routine gaps stay quiet - no label, so they do not compete.
+            return
+
+        folium.Marker(
+            location=[vessel["lat"], vessel["lon"]],
+            icon=folium.DivIcon(
+                html=(
+                    f"<div style='transform:translate(14px,-9px);"
+                    f"background:{style['colour']};color:#ffffff;"
+                    f"padding:1px 6px;border-radius:5px;"
+                    f"font-size:11px;font-weight:800;letter-spacing:0.04em;"
+                    f"white-space:nowrap;border:1px solid rgba(255,255,255,0.35);"
+                    f"box-shadow:0 1px 4px rgba(0,0,0,0.5);'>{flag_code}</div>"
+                ),
+                icon_size=(0, 0),
+                icon_anchor=(0, 0),
+            ),
         ).add_to(target_map)
 
     def draw_boundary_line(target_map) -> None:
@@ -521,6 +551,9 @@ with tab_dark:
             )
 
         st.caption(
+            "🚩 red = foreign flag inside our waters · ⚠️ amber ring = one "
+            "of ours near the line · ❓ purple = no flag. The label beside "
+            "each marker is the vessel's flag state. "
             "The dashed red line is an **approximate, illustrative** maritime "
             "boundary for demo visualisation only - not surveyed or legal "
             "coordinates."
