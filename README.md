@@ -479,11 +479,7 @@ SamudraRakshak/
 ├── data/
 │   └── sample_debris.json      Sample debris sightings
 ├── .streamlit/
-│   └── config.toml             Streamlit theme (currently defaults)
-├── DEFENCE.md                  Answers to the hard questions - read before judging
-├── VIDEO_SCRIPT.md             Shot-by-shot demo script
-├── CHEATSHEET.md               One-page demo reference
-├── UI_PROMPT.md                Brief used for the UI/UX pass
+│   └── config.toml             Pinned dark theme
 ├── test_person_a.py            Foundation layer checks
 ├── test_person_b.py            Route + debris agent checks
 ├── requirements.txt
