@@ -27,75 +27,143 @@ from utils.fisherman_page import (
     build_offline_alert_page,
 )
 
-st.set_page_config(page_title="Samudra Rakshak - Fisherman", page_icon="📱")
+st.set_page_config(
+    page_title="மீனவர் எச்சரிக்கை · Fisherman Alert",
+    page_icon="📱",
+    layout="centered",
+)
 
+# Custom mobile-focused styling
 st.markdown(
     """
     <style>
-    .fisher-header {
-        background: linear-gradient(135deg, #0f766e 0%, #0891b2 100%);
-        padding: 20px 24px; border-radius: 14px; margin-bottom: 18px;
+    /* Clean, focused crew interface */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 820px;
     }
-    .fisher-header h1 { color: #fff; margin: 0; font-size: 1.45rem; font-weight: 700; }
-    .fisher-header p { color: #ccfbf1; margin: 5px 0 0 0; font-size: 0.88rem; }
+    
+    .fisher-header {
+        background: linear-gradient(135deg, #064e3b 0%, #0f766e 60%, #0284c7 100%);
+        padding: 24px 28px;
+        border-radius: 18px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 24px rgba(6, 78, 59, 0.35);
+    }
+    .fisher-header h1 {
+        color: #ffffff;
+        margin: 0;
+        font-size: 1.65rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        line-height: 1.3;
+    }
+    .fisher-header p {
+        color: #ccfbf1;
+        margin: 8px 0 0 0;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    /* Phone device frame */
+    .phone-chassis {
+        max-width: 320px;
+        margin: 0 auto;
+        background: #020617;
+        border: 12px solid #1e293b;
+        border-radius: 42px;
+        overflow: hidden;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        position: relative;
+    }
+    .phone-speaker {
+        width: 60px;
+        height: 5px;
+        background: #334155;
+        border-radius: 3px;
+        margin: 12px auto 8px auto;
+    }
+    .phone-notch {
+        width: 12px;
+        height: 12px;
+        background: #0f172a;
+        border-radius: 50%;
+        display: inline-block;
+        margin-left: 8px;
+    }
+    .phone-screen {
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Action card on control side */
+    .control-card {
+        background: #131c31;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+    }
     </style>
     <div class="fisher-header">
-        <h1>📱 மீனவர் எச்சரிக்கை · Fisherman Alert</h1>
-        <p>எல்லை நெருங்கும் போது எச்சரிக்கை &middot; Boundary warning, GPS only</p>
+        <h1>📱 மீனவர் எல்லை எச்சரிக்கை<br><span style="font-size: 1.25rem; font-weight: 600; opacity: 0.95;">Fisherman Border Safety Alert</span></h1>
+        <p>GPS வழிநடத்துதல் &middot; தன்னிச்சையான எச்சரிக்கை &middot; GPS Geofence Only</p>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-st.info(
-    "🔒 **This app is separate from the coast guard dashboard on purpose.** "
-    "It carries only the boundary — never vessel positions, patrol locations, "
-    "or alerts. A crew should be warned, not watched."
-)
-
-# A link back, purely so a demo can move between the two without hunting for
-# windows. It is a plain URL - this app still shares no state, and no code,
-# with the dashboard.
+# Cross-link back to coast guard dashboard
 GUARD_APP_URL = "http://localhost:8501"
-st.link_button("↩ Back to the coast guard dashboard", GUARD_APP_URL)
+st.link_button("↩ Back to Coast Guard Dashboard", GUARD_APP_URL)
 
 st.write(
     "The geofence runs on GPS alone — no network and no AIS. That matters "
     "because the boat that most needs warning is the one that has gone dark."
 )
 
-# How each state is drawn. Thresholds come from utils/fisherman_page.py, the
-# same ones baked into the downloadable file, so the two cannot drift apart.
+# State styles with high-contrast, large text for video recording
 FISHERMAN_STATES = {
     "safe": {
-        "background": "#14532d",
+        "bg_gradient": "linear-gradient(180deg, #064e3b 0%, #065f46 100%)",
+        "border_color": "#10b981",
         "tamil": "பாதுகாப்பாக உள்ளீர்கள்",
-        "english": "SAFE",
+        "english": "SAFE ZONE",
         "message": "You are well clear of the boundary. Good fishing.",
+        "tamil_sub": "எல்லையிலிருந்து பாதுகாப்பான தொலைவில் உள்ளீர்கள்.",
+        "icon": "🟢",
     },
     "caution": {
-        "background": "#854d0e",
-        "tamil": "எச்சரிக்கை",
-        "english": "CAUTION",
+        "bg_gradient": "linear-gradient(180deg, #78350f 0%, #92400e 100%)",
+        "border_color": "#f59e0b",
+        "tamil": "எச்சரிக்கை! எல்லை அருகில்",
+        "english": "CAUTION — CLOSE",
         "message": "Boundary is close. Stay alert and keep your AIS on.",
+        "tamil_sub": "எல்லை அருகில் உள்ளது. கவனமாக படகை திருப்பவும்.",
+        "icon": "🟡",
     },
     "danger": {
-        "background": "#7f1d1d",
-        "tamil": "எல்லைக்கு மிக அருகில்!",
-        "english": "TOO CLOSE - TURN BACK",
+        "bg_gradient": "linear-gradient(180deg, #7f1d1d 0%, #991b1b 100%)",
+        "border_color": "#ef4444",
+        "tamil": "உடனடியாக திரும்புங்கள்!",
+        "english": "TOO CLOSE — TURN BACK",
         "message": "Turn back towards Indian waters now.",
+        "tamil_sub": "எல்லைக்கு மிக அருகில்! உடனே இந்திய எல்லைக்குள் செல்லவும்.",
+        "icon": "🔴",
     },
 }
 
-controls_column, screen_column = st.columns([1, 1])
+controls_column, screen_column = st.columns([1, 1], gap="large")
 
 with controls_column:
+    st.markdown("### 🧭 GPS Simulator")
     st.caption(
-        "Drag to simulate the boat approaching the boundary, as it would be "
-        "read from GPS on board."
+        "Drag the slider to simulate your boat's distance to the boundary line as read by onboard GPS:"
     )
     simulated_distance_km = st.slider(
-        "Distance from boundary (km)",
+        "Distance to boundary (km)",
         min_value=0.0,
         max_value=30.0,
         value=14.0,
@@ -109,11 +177,14 @@ with controls_column:
     else:
         alert_state = "safe"
 
+    st.markdown("---")
     st.download_button(
-        "⬇️ Download the geofence file",
+        "⬇️ Download Offline Geofence File",
         data=build_offline_alert_page(),
         file_name="samudra_rakshak_alert.html",
         mime="text/html",
+        use_container_width=True,
+        type="secondary",
         help="One self-contained HTML file with the boundary baked in. No map "
              "tiles, no CDN, no API calls - the geofence needs no network.",
     )
@@ -131,34 +202,48 @@ with screen_column:
 
     st.markdown(
         f"""
-        <div style="max-width:300px;margin:0 auto;border:10px solid #1e293b;
-                    border-radius:30px;overflow:hidden;
-                    box-shadow:0 6px 20px rgba(0,0,0,0.35);">
-          <div style="background:{style['background']};padding:26px 18px;
-                      text-align:center;color:#ffffff;">
-            <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;">
-              {style['tamil']}
+        <div class="phone-chassis">
+          <div class="phone-speaker"></div>
+          <div class="phone-screen">
+            <div style="background:{style['bg_gradient']};padding:30px 18px 24px 18px;
+                        text-align:center;color:#ffffff;border-bottom:3px solid {style['border_color']};">
+              <div style="font-size:1.0rem;margin-bottom:8px;">{style['icon']} GPS LIVE</div>
+              <div style="font-size:1.35rem;font-weight:800;line-height:1.45;margin-bottom:6px;
+                          letter-spacing:0.01em;">
+                {style['tamil']}
+              </div>
+              <div style="font-size:1.25rem;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;">
+                {style['english']}
+              </div>
+              <div style="font-size:4.0rem;font-weight:900;line-height:1.0;margin:18px 0 4px 0;
+                          letter-spacing:-0.03em;text-shadow:0 3px 12px rgba(0,0,0,0.4);">
+                {simulated_distance_km:.1f}
+              </div>
+              <div style="font-size:0.92rem;font-weight:700;color:rgba(255,255,255,0.92);letter-spacing:0.03em;">
+                KM TO BOUNDARY · கி.மீ.
+              </div>
             </div>
-            <div style="font-size:1.4rem;font-weight:800;line-height:1.15;">
-              {style['english']}
+            <div style="background:#0f172a;padding:20px 18px;color:#f1f5f9;font-size:0.95rem;line-height:1.55;">
+              <div style="font-weight:700;margin-bottom:6px;color:#f8fafc;font-size:1.05rem;">
+                {style['tamil_sub']}
+              </div>
+              <div style="color:#cbd5e1;font-size:0.9rem;">
+                {style['message']}
+              </div>
             </div>
-            <div style="font-size:2.9rem;font-weight:800;margin:12px 0 0 0;">
-              {simulated_distance_km:.1f}
+            <div style="background:#090d16;padding:12px 18px;color:#94a3b8;font-size:0.75rem;
+                        line-height:1.45;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
+              DEMO ONLY — approximate boundary, not surveyed coordinates. Not for navigation.
             </div>
-            <div style="font-size:0.72rem;opacity:0.85;">
-              km from boundary · எல்லையிலிருந்து கி.மீ.
-            </div>
-          </div>
-          <div style="background:#111c2e;padding:14px;color:#cbd5e1;
-                      font-size:0.82rem;line-height:1.45;">
-            {style['message']}
-          </div>
-          <div style="background:#1c1917;padding:9px 14px;color:#a8a29e;
-                      font-size:0.62rem;line-height:1.4;">
-            DEMO ONLY — approximate boundary, not surveyed coordinates.
-            Not for navigation.
           </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+st.markdown("---")
+st.info(
+    "🔒 **This app is separate from the coast guard dashboard on purpose.** "
+    "It carries only the boundary — never vessel positions, patrol locations, "
+    "or alerts. A crew should be warned, not watched."
+)

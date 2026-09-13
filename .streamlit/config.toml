@@ -1,1 +1,6 @@
-# Reverted to Streamlit defaults - no custom theme.
+[theme]
+base = "dark"
+primaryColor = "#0ea5e9"
+backgroundColor = "#0b1120"
+secondaryBackgroundColor = "#131c31"
+textColor = "#f1f5f9"

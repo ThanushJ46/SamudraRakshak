@@ -1,11 +1,15 @@
-# 2:45 video script
+# 2:55 video script — the persuasive cut
 
-Target 2:55, hard ceiling 3:00. Narration is written to be read aloud at a
-normal pace — do not rush it, cut the visuals to fit instead.
+**The constraint:** nobody asks you questions. Every point you want scored has
+to land inside three minutes.
 
-**The editorial decision: half the video is the fishermen story.** Route and
-debris get ten seconds each. Do not try to show three agents properly in three
-minutes — you will show none of them properly.
+**The method:** narration carries the *story*, on-screen captions carry the
+*technical facts*. A judge reads a caption while you're saying something else,
+so you get roughly double the bandwidth. Every `[CAPTION]` below is text you
+burn into the video — do not read them aloud.
+
+**Word budget:** ~450 spoken words. Read at a normal pace. Do not rush; cut
+visuals to fit, never speech.
 
 ---
 
@@ -13,145 +17,184 @@ minutes — you will show none of them properly.
 
 ```
 del data\flagged_history.json
-python -m streamlit run app.py
+python -m streamlit run app.py --server.port 8501
 ```
 
-- **Demo Sample Data** + **Gulf of Mannar**. Never Live.
-- Run the Route Optimizer once (Rameswaram → Kochi) so the weather call is
-  warm, then reload the page.
-- Browser at **100% zoom**, full screen, bookmarks bar hidden.
-- Close Streamlit's **Deploy** button popup if it appears.
-- Record at 1080p. Zoom in during editing on the Tamil message and the triage
-  text — default size is unreadable on a phone.
+Second terminal:
 
-**Record in one take, then cut the waiting.** Every spinner gets removed.
+```
+python -m streamlit run fisherman_app.py --server.port 8502
+```
 
----
-
-## 0:00 – 0:25 · The hook
-
-*Screen: the dashboard, before scanning.*
-
-> A fishing boat goes quiet near the maritime boundary between India and Sri
-> Lanka.
->
-> Every monitoring system treats that the same way — a suspect. But if it's an
-> Indian boat, that crew is minutes from crossing a line they can't see, and
-> being detained for weeks.
->
-> Nobody warns them. That's what we built.
-
-*Click **Scan for dark vessels**. **CUT the 8-second wait.***
+- **Demo Sample Data**, **Gulf of Mannar**. Never Live.
+- Run the Route Optimizer once so the weather call is warm, then reload.
+- Fisherman app in a second window, narrow like a phone.
+- Kill stray Streamlit processes first, or you will film the wrong app.
 
 ---
 
-## 0:25 – 0:55 · It sorts them
+## 0:00 – 0:22 · The hook (55 words)
 
-*Screen: results. Zoom on the four category headers.*
+*Screen: dashboard, before scanning.*
 
-> Six vessels have gone dark. Samudra Rakshak doesn't treat them alike — it
-> asks where each one is, and whose it is.
+> Every year, Indian fishermen are detained for drifting across a maritime
+> boundary they cannot see.
 >
-> A foreign trawler inside our waters. One of **our** boats, six kilometres
-> from the line. An unidentified vessel. And two routine gaps.
+> Every vessel-monitoring system in the world treats a boat that goes dark as a
+> suspect. Ours asks a different question first: **whose boat is it?**
+>
+> Because if it's ours, that crew doesn't need catching. They need warning.
 
-*Scroll to Routine Gaps, zoom on the 55 km one.*
+*Click **Scan for dark vessels**. **CUT the wait.***
 
-> This one has been silent for ten hours — and we **downgraded** it, because
-> it's fifty-five kilometres from anywhere sensitive. That's a broken radio,
-> not a crime. Cutting false alarms is the point.
+`[CAPTION: Global Fishing Watch API · live AIS-gap detection]`
 
 ---
 
-## 0:55 – 1:35 · The part that matters
+## 0:22 – 0:52 · It sorts them (80 words)
 
-*Open **⚠️ Border Safety Alert**. Zoom on the Tamil message. Hold it.*
+*Zoom on the four category headers.*
 
-> This is our boat. Six kilometres from the boundary, silent for three hours.
->
-> So the system drafts the message a coastal station would actually send —
-> in **Tamil and English**, because that's the language the crew reads.
+> Six vessels have gone dark. The system sorts them by flag state and distance
+> to the boundary — a foreign trawler inside our waters, one of **our** boats
+> six kilometres from the line, an unidentified vessel, and two routine gaps.
 
-*Let the Tamil sit on screen for a full 3 seconds. Do not talk over it.*
+*Scroll to Routine Gaps. Zoom the 55 km one.*
 
-*Scroll slightly to the Interception plan.*
+> This one has been silent for **ten hours**. We downgraded it — because it is
+> fifty-five kilometres from anywhere sensitive. That's a broken radio, not a
+> crime. Most systems would have paged an officer.
+
+`[CAPTION: Classification is deterministic — flag state + perpendicular
+distance. Auditable, not a model's guess.]`
+
+---
+
+## 0:52 – 1:28 · The part that matters (90 words)
+
+*Open **⚠️ Border Safety Alert**. Zoom the warning box. Hold it.*
+
+> This is our boat. So the system drafts the message a coastal station would
+> actually send — in **Tamil and English**, because that's the language the
+> crew reads.
+
+*Silence for 3 full seconds on the Tamil. Do not talk over it.*
+
+*Scroll to the Interception plan.*
 
 > And it has already asked the route agent how to reach him: Rameswaram,
 > seventy-one kilometres, two hours.
 >
-> One agent found him. Another planned the response. The warning is already
-> written.
+> One agent found him. A second planned the response. Nobody clicked anything.
+
+`[CAPTION: Agent chaining — dark-vessel output feeds the route agent
+automatically, gated by category]`
 
 ---
 
-## 1:35 – 1:55 · The AI decides
+## 1:28 – 1:52 · The decision (60 words)
 
 *Zoom on **🧠 AI Triage**.*
 
-> Rules decide what each vessel **is** — that stays deterministic, because an
-> enforcement action depends on it.
+> The rules decided what each vessel **is**. This is the model deciding what to
+> do **first** — one patrol boat, six vessels, competing priorities.
 >
-> This is the model deciding what to do **first**, with one patrol boat
-> available — and showing its reasoning, so the officer can disagree with it.
+> It put the fisherman above the foreign trawler, and said why. That is a
+> judgement no threshold makes for you.
+
+`[CAPTION: Groq · openai/gpt-oss-120b · ranked plan + reasoning shown, so the
+officer can overrule it]`
 
 ---
 
-## 1:55 – 2:20 · The other two agents, fast
+## 1:52 – 2:18 · The other two agents (65 words)
 
-*Route Optimizer, already loaded. **CUT any wait.***
+*Route Optimizer tab, pre-loaded. **CUT any wait.***
 
-> Two more agents. Routing keeps ships at sea instead of cutting across land,
-> and picks the calmer water using live wind data.
+> Two more agents. Routing samples live wind either side of the track and takes
+> the calmer path **only when it actually burns less fuel** — here, two point
+> four percent. When it doesn't pay, it reports zero.
 
-*Debris Cleanup — click, it's instant.*
+*Debris tab — instant.*
 
-> And cleanup plans the shortest collection round for ten debris sightings —
-> a hundred and fifty-eight kilometres, priced in fuel.
+> And cleanup sequences ten debris sightings into a hundred and fifty-eight
+> kilometres, priced in fuel.
+
+`[CAPTION: Open-Meteo wind · fuel = distance × rate × wind penalty · sea
+corridor keeps the track off land]`
 
 ---
 
-## 2:20 – 2:40 · The fisherman's phone
+## 2:18 – 2:42 · His end of it (60 words)
 
-*Switch to the second window — the fisherman's app. Drag the slider from
-14 km down to 0.*
+*Switch to the fisherman window. Drag the slider 14 → 0.*
 
-> And this is his end of it — a **separate app**, on his own phone.
+> And this is the fisherman's side — a **separate app**, on his own phone.
 >
 > It carries only the boundary. Never vessel positions, never where the patrol
-> boats are. A crew should be warned, not watched.
+> is. A crew should be warned, not watched.
 >
-> It runs on GPS alone — no network, no AIS. Which matters, because the boat we
-> most need to warn is the one that's gone dark.
+> It runs on GPS alone. No network, no AIS — which matters, because the boat we
+> most need to warn is the one that has gone dark.
 
-*Let the red screen hold for 2 seconds. That is the closing image.*
+*Hold the red screen 2 seconds.*
+
+`[CAPTION: Separate process — cannot import the vessel feed or the API token]`
 
 ---
 
-## 2:40 – 2:55 · Close
+## 2:42 – 2:55 · Close (45 words)
 
-*Screen: back to the Border Safety Alert, or the full map.*
-
-> Three agents, plain Python, no framework — detection, the decision, and the
-> warning, end to end.
+> Three agents, plain Python, no framework. Three live APIs. Detection, the
+> decision, and the warning — end to end.
 >
-> The boundary here is approximate, and the alert still needs packaging as an
-> installable app. But the logic is done.
+> The boundary here is approximate, and delivery still needs packaging as an
+> installable app. But every number on screen is computed, not claimed.
 
 *Pause.*
 
-> Every other system watches fishermen. This one warns them.
+> Every other system watches fishermen. **This one warns them.**
 
 ---
 
-## On-screen text to burn in
+## The captions, collected
 
-One caption, bottom of frame, around 2:20 — not spoken beyond the line above:
+Burn these in. They carry the technical marks you have no time to speak.
 
-> Boundary shown is approximate, for demonstration only. Not surveyed
-> coordinates.
+1. `Global Fishing Watch API · live AIS-gap detection`
+2. `Classification is deterministic — flag state + perpendicular distance.
+   Auditable, not a model's guess.`
+3. `Agent chaining — dark-vessel output feeds the route agent automatically,
+   gated by category`
+4. `Groq · openai/gpt-oss-120b · ranked plan + reasoning shown, so the officer
+   can overrule it`
+5. `Open-Meteo wind · fuel = distance × rate × wind penalty · sea corridor
+   keeps the track off land`
+6. `Separate process — cannot import the vessel feed or the API token`
 
-That one line covers you, and the README carries the detail if anyone opens
-the repo.
+Plus one persistent disclaimer, small, bottom-right from 0:22 onward:
+
+> `Boundary approximate — demonstration only. Not surveyed coordinates.`
+
+---
+
+## Why this convinces without a Q&A
+
+Each beat answers a question they would otherwise have asked:
+
+| Unasked question | Where it is answered |
+|---|---|
+| "Isn't this just another tracking dashboard?" | 0:00 — whose boat is it |
+| "Won't it drown officers in false alarms?" | 0:22 — the ten-hour downgrade |
+| "Is the AI doing anything real?" | 1:28 — ranking with reasoning |
+| "Do the agents actually work together?" | 0:52 — chaining, nobody clicked |
+| "Are those fuel numbers made up?" | 1:52 — only when it burns less |
+| "Who receives the warning?" | 2:18 — his own app |
+| "Are you overclaiming?" | 2:42 — the caveat, volunteered |
+
+That last row matters more than it looks. Volunteering the boundary caveat in a
+video where nobody can challenge you reads as confidence. Hiding it and being
+noticed reads as the opposite.
 
 ---
 
@@ -161,19 +204,13 @@ the repo.
 |---|---|
 | Scan spinner | 8s |
 | Route Optimizer wait | 6–8s |
-| Any mouse hunting for a button | 2–4s |
+| Cursor hunting for buttons | 2–4s |
 
-The Fisherman Alert slider is instant — no cut needed. Drag it smoothly from
-14 down to 0 in one motion so the colour change reads on camera.
+Zoom in on the Tamil message and the triage reasoning — default text is
+unreadable when a judge watches on a phone.
 
-Practise the clicks so the cursor moves straight to things. Nothing reads as
-unprepared faster than a cursor wandering the screen.
+## If you only get one clean take
 
----
-
-## If you only have time for one take
-
-Record **0:00 – 1:35** properly — the hook, the sorting, and the Tamil
-warning — then jump straight to **2:20**, the fisherman's phone, and the
-closing line. Drop route and debris entirely if you have to. The detection and
+Record **0:00 – 1:28** properly, then jump to **2:18** for the fisherman's
+phone and the closing line. Drop route and debris entirely. The detection and
 the warning are the idea; the other two agents are supporting cast.

@@ -264,9 +264,17 @@ The downloadable geofence file inherits the same property: it contains the
 boundary and two distance thresholds, and nothing else.
 
 ```bash
-python -m streamlit run app.py                                  # coast guard
+python -m streamlit run app.py --server.port 8501               # coast guard
 python -m streamlit run fisherman_app.py --server.port 8502     # fisherman
 ```
+
+The coast guard dashboard is organised into three tabs - **Dark Vessel
+Monitor** (the default), **Route Optimizer**, and **Debris Cleanup** - so a
+demo does not have to scroll. Each app has a link button to the other; they
+are separate processes, not two views of one app.
+
+Always pass `--server.port` explicitly. A stray Streamlit process on the
+default 8501 will silently block the one you meant to start.
 
 ---
 
@@ -473,6 +481,9 @@ SamudraRakshak/
 ├── .streamlit/
 │   └── config.toml             Streamlit theme (currently defaults)
 ├── DEFENCE.md                  Answers to the hard questions - read before judging
+├── VIDEO_SCRIPT.md             Shot-by-shot demo script
+├── CHEATSHEET.md               One-page demo reference
+├── UI_PROMPT.md                Brief used for the UI/UX pass
 ├── test_person_a.py            Foundation layer checks
 ├── test_person_b.py            Route + debris agent checks
 ├── requirements.txt
