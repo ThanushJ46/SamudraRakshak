@@ -35,9 +35,16 @@ FUEL_RATE_LITERS_PER_KM = 3.5
 WIND_FUEL_PENALTY_PER_KMH = 0.01
 
 # How far sideways we are willing to look for calmer water, in km.
-# A 2 km nudge is pointless - the wind there is identical. 0.0 must stay in the
-# list: it is the direct route, and our baseline.
-LATERAL_OFFSETS_KM = [-30.0, -15.0, 0.0, 15.0, 30.0]
+# 0.0 must stay in the list: it is the direct route, and our baseline.
+#
+# KEEP THESE SMALL. The caller (utils/sea_route.py) hands us legs that run
+# between offshore waypoints known to be at sea, and every kilometre we stray
+# sideways is a kilometre away from that known-good line. An earlier version
+# searched +/-30 km and pushed waypoints inland - the map showed a ship
+# sailing across Tamil Nadu. A tight search keeps the path in the water; the
+# cost is that the wind barely differs over 8 km, so the detour usually does
+# not pay and we honestly report no saving.
+LATERAL_OFFSETS_KM = [-8.0, -4.0, 0.0, 4.0, 8.0]
 
 
 def haversine_distance(coord1: dict, coord2: dict) -> float:

@@ -33,7 +33,7 @@ waypoints. Do not use for navigation.
 SEA_CORRIDOR = [
     {"name": "Off Kochi",        "lat": 9.90, "lon": 75.90},
     {"name": "Off Kanyakumari",  "lat": 7.70, "lon": 77.20},
-    {"name": "Off Tuticorin",    "lat": 8.55, "lon": 78.25},
+    {"name": "Off Tuticorin",    "lat": 8.45, "lon": 78.45},
     {"name": "Gulf of Mannar",   "lat": 8.75, "lon": 79.00},
     {"name": "Off Rameswaram",   "lat": 9.10, "lon": 79.35},
     {"name": "Palk Bay",         "lat": 10.30, "lon": 79.95},

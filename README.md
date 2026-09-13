@@ -391,8 +391,8 @@ saving is claimed**.
 
 | Route | Straight | Path taken | Baseline | Optimised | Saving |
 |---|---|---|---|---|---|
+| Rameswaram → Kochi (6 legs) | — | 633.4 km | 2616.5 L | 2552.9 L | 2.4% |
 | Rameswaram → Chennai | 434.7 km | 450.4 km | 1809.9 L | 1792.7 L | 0.9% |
-| Kochi → Colombo | 517.5 km | 522.8 km | 2190.1 L | 2176.2 L | 0.6% |
 | Rameswaram → Tuticorin | 141.9 km | 141.9 km | 576.1 L | 576.1 L | **0.0%** |
 
 The savings are **small — under 1%** — and that is the honest figure. The
@@ -485,10 +485,17 @@ SamudraRakshak/
 
 Things we would fix with more time, stated plainly rather than hidden:
 
-- **Weather routing is a marginal gain.** Under 1% on the routes we tested,
-  and 0% where the detour does not pay. That is the real figure; we report it
-  rather than a flattering one. The wind-to-fuel coefficient (0.01 per km/h) is
-  an approximate demo value.
+- **Weather routing is a marginal gain.** Typically 0-3% depending on the day's
+  wind, and exactly 0% where the detour does not pay - the agent then keeps the
+  direct route and claims nothing. That is the real figure; we report it rather
+  than a flattering one. The wind-to-fuel coefficient (0.01 per km/h) is an
+  approximate demo value.
+- **The lateral wind search is deliberately narrow (+/-8 km).** A wider search
+  finds calmer water but strays from the offshore corridor, and at +/-30 km it
+  pushed waypoints inland - the map showed a ship crossing Tamil Nadu. Every
+  waypoint on all six port pairs is now verified against real coastal positions
+  as being at sea. The cost of the tight search is that wind barely differs
+  across 8 km, so savings stay small.
 - **Four demo vessels are placed deliberately.** `PINNED_SAMPLE_POSITIONS` in
   `gfw_client.py` puts them at 6, 9, 35 and 55 km from the boundary so a demo
   reliably exercises all four categories instead of depending on luck. The
